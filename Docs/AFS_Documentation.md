@@ -57,13 +57,13 @@
 | Name                                   | Purpose                                             |
 |:-----------------------------------------|:-----------------------------------------------------|
 | **EFormationPhase**                        | Current state (Idle, Rotating, Moving)              |
-| **USphereComponent* SphereComponent**      | Collision defining formation size                   |
-| **USphereComponent* ExtendSphereComponent**| Collision for expansion checks                      |
-| **UFloatingPawnMovement* MoveComponent**   | Controls formation movement                         |
-| **TArray<UFormationAgentComponent*> FormationAgentComponents** | Agent components currently in the formation         |
-| **TArray<UFormationAgentComponent*> PreviousFormationAgentComponents** | Agent components from previous tick          |
-| **UFormationAsset* RefFormationAsset**     | Reference to the original formation data            |
-| **UFormationAsset* FormationAsset**        | Copy of the formation data (mutable during transformation) |
+| **USphereComponent\* SphereComponent**      | Collision defining formation size                   |
+| **USphereComponent\* ExtendSphereComponent**| Collision for expansion checks                      |
+| **UFloatingPawnMovement\* MoveComponent**   | Controls formation movement                         |
+| **`TArray<UFormationAgentComponent*> FormationAgentComponents`**| Agent components currently in the formation         |
+| **`TArray<UFormationAgentComponent*> PreviousFormationAgentComponents`** | Agent components from previous tick          |
+| **UFormationAsset\* RefFormationAsset**     | Reference to the original formation data            |
+| **UFormationAsset\* FormationAsset**        | Copy of the formation data (mutable during transformation) |
 | **EFormationRearrangeMode RearrangeMode**  | Rearrangement mode for the formation                |
 | **bool bIsFormationMoveStart**             | Whether the formation has started moving            |
 | **FVector TargetLocation**                 | Target location for movement                        |
