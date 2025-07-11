@@ -145,5 +145,5 @@ Struct used for each agent in the formation asset.
 
 | Return Type   | Function              | Parameters                        | Description                                         |
 |:-------------|:----------------------|:-----------------------------------|:----------------------------------------------------|
-| `AFormation*` | **`GetFormationOwner`**   | `() const`                        | Returns a pointer to the owning formation actor.     |
+| `AFormation*` | **`GetFormationOwner`**   |                        | Returns a pointer to the owning formation actor.     |
 | `void`        | **`SetFormationOwner`**   | `AFormation* InFormationOwner`     | Sets the owning formation actor for this component.  |
