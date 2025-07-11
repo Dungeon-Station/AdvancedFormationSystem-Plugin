@@ -1,57 +1,89 @@
-Formation System
-This document describes the core classes and components of the Formation System for Unreal Engine, including their purposes and member variables. Use this as a reference for integration, extension, or understanding the internal structure.
+# **Advanced Formation System Documentation**
 
-C++ Classes
-AFormation
-Represents a formation entity that manages characters with UFormationAgentComponent. Responsible for formation creation, disbanding, movement, transformation, and management of its agents.
+## **Overview**
 
-Components
-Formation Center (USceneComponent): Serves as the reference point for the formation. Agents' positions are calculated relative to this center.
+    This document describes the core classes and components of the Advanced Formation System for Unreal Engine, including their purposes and member variables. Use this as a reference for integration, extension, or understanding the internal structure.
 
-Formation Collision (USphereComponent): Defines the size of the formation. Used for path correction and transformation checks. The radius is determined by the FFormationWelzl class, considering the largest agent in the formation.
+## **Key Features**
 
-Extend Formation Collision (USphereComponent): An expanded collision component used to determine if the formation can be expanded after being contracted.
+### **Intuitive Custom Formation Editor**
+    
+    Our powerful, user-friendly editor gives you complete freedom to design, save, and modify any formation pattern you can imagine. Create unique arrangements perfectly tailored to your game's factions.
+    
+### **Formation Movement & Obstacle Avoidance**
+    
+    Achieve seamless group movement. Units will maintain their position within the formation while navigating around obstacles and complex terrain. The system ensures that your groups move as a disciplined unit, not as a chaotic cluster.
+    
+### **Dynamic Rearrangement and Transformation**
+    
+    Formations can dynamically adjust to changing conditions, such as losing units or merging with other groups. You can also seamlessly transform one formation into another formation.
+    
+### **Navmesh-Based Dynamic Path Generation**
+    
+    The system dynamically generates an optimal travel path for the entire formation using your existing Navmesh. This ensures smooth, intelligent navigation across any environment without requiring complex manual setup.
 
-Move Component (UFloatingPawnMovement): Handles the movement of the AFormation actor.
+## **Installation and Setup**
 
-Main Features
-Formation Creation: Reads data from UFormationAsset to create the formation. Uses FFormationHungarian for optimal and fast arrangement.
+    Blank
 
-Formation Movement: Generates a path using Unreal Engine's Navigation system, then modifies it (using FFormationPathModifier) to account for the formation's size. Continuously updates the path and commands agents to move accordingly.
+## **Technical Reference**
 
-Formation Transformation: Adjusts the collision size and agent offsets when shrinking or expanding the formation.
+### **Actors and Components**
 
-Formation Disband/Reformation: Can temporarily disband and later reform the formation, especially when the formation becomes too small.
+#### **AFormation**
 
-Member Variables
-Name	Purpose
-EFormationPhase	Current state (Idle, Rotating, Moving)
-USphereComponent* SphereComponent	Collision defining formation size
-USphereComponent* ExtendSphereComponent	Collision for expansion checks
-UFloatingPawnMovement* MoveComponent	Controls formation movement
-TArray<UFormationAgentComponent*> FormationAgentComponents	Agent components currently in the formation
-TArray<UFormationAgentComponent*> PreviousFormationAgentComponents	Agent components from previous tick
-UFormationAsset* RefFormationAsset	Reference to the original formation data
-UFormationAsset* FormationAsset	Copy of the formation data (mutable during transformation)
-EFormationRearrangeMode RearrangeMode	Rearrangement mode for the formation
-bool bIsFormationMoveStart	Whether the formation has started moving
-FVector TargetLocation	Target location for movement
-FRotator TargetRotation	Target rotation for movement
-float FormationTurnThreshold	Total rotation amount when turning
-float FormationTurnSpeed	Speed of rotation
-float FormationSpeed	Formation movement speed
-float AgentSpeed	Common speed for agents within the formation
-float StrayAgentSpeed	Speed for agents rejoining the formation
-float AgentAcceleration	Acceleration for agents
-TArray<FVector> PathPoints	Path points for formation movement
-int32 CurrentPathIndex	Current index in the path
-FPathModifierConfig ModifierConfig	Path modification settings
-float ResizeIntensity	Intensity of formation transformation
-int32 CorrectPathNum	Number of path points to correct on collision
-float CorrectPathIntensity	Intensity of path correction
-bool bBroken	Whether the formation is disbanded
-bool bDrawDebug	Whether to draw debug elements
-UFormationAgentComponent
+    Represents a formation entity that manages characters with UFormationAgentComponent. Responsible for formation creation, disbanding, movement, transformation, and management of its agents.
+
+- **Components of AFormation**
+    - **Formation Center (USceneComponent)**: Serves as the reference point for the formation. Agents' positions are calculated relative to this center.
+
+    - **Formation Collision (USphereComponent)**: Defines the size of the formation. Used for path correction and transformation checks. The radius is determined by the FFormationWelzl class, considering the largest agent in the formation.
+
+    - **Extend Formation Collision (USphereComponent)**: An expanded collision component used to determine if the formation can be expanded after being contracted.
+
+    - **Move Component (UFloatingPawnMovement)**: Handles the movement of the AFormation actor.
+
+- **Main Features**
+    - **Formation Creation**: Reads data from UFormationAsset to create the formation. Uses FFormationHungarian for optimal and fast arrangement.
+
+    - **Formation Movement**: Generates a path using Unreal Engine's Navigation system, then modifies it (using FFormationPathModifier) to account for the formation's size. Continuously updates the path and commands agents to move accordingly.
+
+    - **Formation Transformation**: Adjusts the collision size and agent offsets when shrinking or expanding the formation.
+
+    - **Formation Disband/Reformation**: Can temporarily disband and later reform the formation, especially when the formation becomes too small.
+
+- **Member Variables**
+| Name                                   | Purpose                                             |
+|----------------------------------------|-----------------------------------------------------|
+| EFormationPhase                        | Current state (Idle, Rotating, Moving)              |
+| USphereComponent* SphereComponent      | Collision defining formation size                   |
+| USphereComponent* ExtendSphereComponent| Collision for expansion checks                      |
+| UFloatingPawnMovement* MoveComponent   | Controls formation movement                         |
+| TArray<UFormationAgentComponent*> FormationAgentComponents | Agent components currently in the formation         |
+| TArray<UFormationAgentComponent*> PreviousFormationAgentComponents | Agent components from previous tick          |
+| UFormationAsset* RefFormationAsset     | Reference to the original formation data            |
+| UFormationAsset* FormationAsset        | Copy of the formation data (mutable during transformation) |
+| EFormationRearrangeMode RearrangeMode  | Rearrangement mode for the formation                |
+| bool bIsFormationMoveStart             | Whether the formation has started moving            |
+| FVector TargetLocation                 | Target location for movement                        |
+| FRotator TargetRotation                | Target rotation for movement                        |
+| float FormationTurnThreshold           | Total rotation amount when turning                  |
+| float FormationTurnSpeed               | Speed of rotation                                   |
+| float FormationSpeed                   | Formation movement speed                            |
+| float AgentSpeed                       | Common speed for agents within the formation        |
+| float StrayAgentSpeed                  | Speed for agents rejoining the formation            |
+| float AgentAcceleration                | Acceleration for agents                             |
+| TArray<FVector> PathPoints             | Path points for formation movement                  |
+| int32 CurrentPathIndex                 | Current index in the path                           |
+| FPathModifierConfig ModifierConfig     | Path modification settings                          |
+| float ResizeIntensity                  | Intensity of formation transformation               |
+| int32 CorrectPathNum                   | Number of path points to correct on collision       |
+| float CorrectPathIntensity             | Intensity of path correction                        |
+| bool bBroken                           | Whether the formation is disbanded                  |
+| bool bDrawDebug                        | Whether to draw debug elements                      |
+
+
+#### **UFormationAgentComponent**
 A component added to actors to make them members of an AFormation. It enables centralized management and movement control as part of the formation.
 
 Main Features
