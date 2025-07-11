@@ -134,16 +134,16 @@ Struct used for each agent in the formation asset.
 
 | Return Type | Function            | Parameters                                             | Description                                             |
 |:-----------|:--------------------|:------------------------------------------------------|:--------------------------------------------------------|
-| `void`     | `FormationMoveTo`   | `const FVector& Location, const FRotator& Rotation`   | Moves the formation to a target location and rotation.  |
-| `void`     | `RegisterAgent`     | `UFormationAgentComponent* AgentComponent`            | Registers an agent to the formation.                    |
-| `void`     | `RearrangeFormation`|                                                      | Rearranges the formation according to the current formation asset. |
-| `void`     | `FallOutFormation`  |                                                      | Temporarily disbands the formation.                     |
-| `void`     | `FallInFormation`   |                                                      | Reforms the formation after being disbanded.            |
-| `void`     | `ResizeRefFormationAsset` |                                                | Resizes the reference formation asset.                  |
+| `void`     | **`FormationMoveTo`**   | `const FVector& Location, const FRotator& Rotation`   | Moves the formation to a target location and rotation.  |
+| `void`     | **`RegisterAgent`**     | `UFormationAgentComponent* AgentComponent`            | Registers an agent to the formation.                    |
+| `void`     | **`RearrangeFormation`**|                                                      | Rearranges the formation according to the current formation asset. |
+| `void`     | **`FallOutFormation`**  |                                                      | Temporarily disbands the formation.                     |
+| `void`     | **`FallInFormation`**   |                                                      | Reforms the formation after being disbanded.            |
+| `void`     | **`ResizeRefFormationAsset`** |                                                | Resizes the reference formation asset.                  |
 
 #### **UFormationAgentComponent Blueprint/Native Functions**
 
 | Return Type   | Function              | Parameters                        | Description                                         |
 |:-------------|:----------------------|:-----------------------------------|:----------------------------------------------------|
-| `AFormation*` | `GetFormationOwner`   | `() const`                        | Returns a pointer to the owning formation actor.     |
-| `void`        | `SetFormationOwner`   | `AFormation* InFormationOwner`     | Sets the owning formation actor for this component.  |
+| `AFormation*` | **`GetFormationOwner`**   | `() const`                        | Returns a pointer to the owning formation actor.     |
+| `void`        | **`SetFormationOwner`**   | `AFormation* InFormationOwner`     | Sets the owning formation actor for this component.  |
