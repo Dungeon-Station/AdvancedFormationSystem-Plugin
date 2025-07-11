@@ -129,39 +129,21 @@ Struct used for each agent in the formation asset.
 | **`FName GroupName`**       | Group name for the slot (for group-based assignment)           |
 
 ### **Blueprint API**
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void FormationMoveTo(const FVector& Location, const FRotator& Rotation);
-Moves the formation to a target location and rotation.
 
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void RegisterAgent(UFormationAgentComponent* AgentComponent);
-Registers an agent to the formation.
+#### **AFormation Blueprint/Native Functions**
 
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void RearrangeFormation();
-Rearranges the formation according to the current formation asset.
+| Return Type | Function            | Parameters                                             | Description                                             |
+|:-----------|:--------------------|:------------------------------------------------------|:--------------------------------------------------------|
+| `void`     | `FormationMoveTo`   | `const FVector& Location, const FRotator& Rotation`   | Moves the formation to a target location and rotation.  |
+| `void`     | `RegisterAgent`     | `UFormationAgentComponent* AgentComponent`            | Registers an agent to the formation.                    |
+| `void`     | `RearrangeFormation`|                                                      | Rearranges the formation according to the current formation asset. |
+| `void`     | `FallOutFormation`  |                                                      | Temporarily disbands the formation.                     |
+| `void`     | `FallInFormation`   |                                                      | Reforms the formation after being disbanded.            |
+| `void`     | `ResizeRefFormationAsset` |                                                | Resizes the reference formation asset.                  |
 
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void FallOutFormation();
-Temporarily disbands the formation.
+#### **UFormationAgentComponent Blueprint/Native Functions**
 
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void FallInFormation();
-Reforms the formation after being disbanded.
-
-cpp
-UFUNCTION(BlueprintCallable, Category = "Formation")
-void ResizeRefFormationAsset();
-Resizes the reference formation asset.
-
-UFormationAgentComponent Blueprint/Native Functions
-AFormation* GetFormationOwner() const
-Returns a pointer to the owning formation actor.
-
-void SetFormationOwner(AFormation* InFormationOwner)
-Sets the owning formation actor for this component.
+| Return Type   | Function              | Parameters                        | Description                                         |
+|:-------------|:----------------------|:-----------------------------------|:----------------------------------------------------|
+| `AFormation*` | `GetFormationOwner`   | `() const`                        | Returns a pointer to the owning formation actor.     |
+| `void`        | `SetFormationOwner`   | `AFormation* InFormationOwner`     | Sets the owning formation actor for this component.  |
