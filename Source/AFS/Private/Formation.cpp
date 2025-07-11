@@ -1,7 +1,3 @@
-//================================================================
-// AFormation.cpp
-//================================================================
-
 #include "Formation.h"
 #include "FormationAgentComponent.h"
 #include "FormationAsset.h"
@@ -22,37 +18,29 @@
 
 AFormation::AFormation()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>("Formation Center");
+	MoveComponent = CreateDefaultSubobject<UFloatingPawnMovement>("MoveComponent");
 	SphereComponent = CreateDefaultSubobject<USphereComponent>("Formation Collsion");
+	ExtendSphereComponent = CreateDefaultSubobject<USphereComponent>("Extend Formation Collision");
+	
 	SphereComponent->SetupAttachment(RootComponent);
-
 	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	
 	SphereComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	
 	SphereComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
-	
 	SphereComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
 	SphereComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
-	
+
 	SphereComponent->OnComponentBeginOverlap.AddDynamic(this, &AFormation::OnSphereBeginOverlap);
 
-	ExtendSphereComponent = CreateDefaultSubobject<USphereComponent>("Extend Sphere");
 	ExtendSphereComponent->SetupAttachment(SphereComponent);
-
 	ExtendSphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	
 	ExtendSphereComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	
 	ExtendSphereComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
-	
 	ExtendSphereComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
 	ExtendSphereComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
 	
-	MoveComponent = CreateDefaultSubobject<UFloatingPawnMovement>("MoveComponent");
 	MoveComponent->UpdatedComponent = RootComponent;
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -69,11 +57,14 @@ void AFormation::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Initialize the formation asset if it is not set
 	if (RefFormationAsset)
 	{
 		SphereComponent->SetSphereRadius(RefFormationAsset->FormationRadius);
 		FormationAsset = DuplicateObject<UFormationAsset>(RefFormationAsset, GetTransientPackage());
+	}
+	else 
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RefFormationAsset is null in %s"), *GetName());
 	}
 
 	if (AAIController* AICon = Cast<AAIController>(GetController()))
@@ -88,20 +79,23 @@ void AFormation::BeginPlay()
 		}
 	}
 
-	for (int32 i = 0; i < FormationAsset->AgentDatas.Num(); i++)
+	if (FormationAsset)
 	{
-		if (FormationAgentComponents.Num() <= i)
+		for (int32 i = 0; i < FormationAsset->AgentDatas.Num(); i++)
 		{
-			break;
-		}
+			if (FormationAgentComponents.Num() <= i)
+			{
+				break;
+			}
 
-		if(FormationAgentComponents[i] == nullptr || FormationAgentComponents[i]->GetOwner() == nullptr)
-		{
-			continue;
-		}
+			if(FormationAgentComponents[i] == nullptr || FormationAgentComponents[i]->GetOwner() == nullptr)
+			{
+				continue;
+			}
 
-		FormationAgentComponents[i]->GetOwner()->SetActorLocation(FormationAsset->AgentDatas[i].Position + GetActorLocation());
-		FormationAgentComponents[i]->GetOwner()->SetActorRotation(FormationAsset->AgentDatas[i].Rotation + GetActorRotation());
+			FormationAgentComponents[i]->GetOwner()->SetActorLocation(FormationAsset->AgentDatas[i].Position + GetActorLocation());
+			FormationAgentComponents[i]->GetOwner()->SetActorRotation(FormationAsset->AgentDatas[i].Rotation + GetActorRotation());
+		}
 	}
 }
 
@@ -111,29 +105,8 @@ void AFormation::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
-	// if (!FMath::IsNearlyEqual(CurrentFormationScale, TargetFormationScale))
-	// {
-	// 	CurrentFormationScale = FMath::FInterpTo(CurrentFormationScale, TargetFormationScale, DeltaTime, ScaleInterpolationSpeed);
-	// 	
-	// 	// 2. ��이 �제�변경되�을 �만 ResizeFormationData른출�여 �동 명령
-	// 	if (!FMath::IsNearlyEqual(CurrentFormationScale, PreviousFormationScale))
-	// 	{
-	// 		if (PreviousFormationScale > 1e-6f) // 0�로 �누�방�
-	// 		{
-	// 			const float ResizeFactor = CurrentFormationScale / PreviousFormationScale;
-	// 			ResizeFormationData(ResizeFactor);
-	// 		}
-	// 		PreviousFormationScale = CurrentFormationScale;
-	// 	}
-	// }
-	
-	// SphereComponent�기�본 �셋기�로 �� �데�트
-	// if (RefFormationAsset)
-	// {
-	// 	SphereComponent->SetSphereRadius(RefFormationAsset->FormationRadius * CurrentFormationScale);
-	// }
-
 	ExtendSphereComponent->SetSphereRadius(SphereComponent->GetUnscaledSphereRadius() * 1.1f);
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RearrangeIfAgentsChanged);
 		RearrangeIfAgentsChanged();
@@ -202,19 +175,25 @@ void AFormation::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 	FVector CloseDir = (ImpactPoint - MyCenter).GetSafeNormal();
 	float CosCurDir = GetActorForwardVector().Dot(CloseDir);
 	float CurAngle = acos(CosCurDir);
-	if ( GetActorForwardVector().Cross(CloseDir).Z < 0.0f )
+
+	if (GetActorForwardVector().Cross(CloseDir).Z < 0.0f)
+	{
 		CurAngle *= -1.0f;
+	}
+	
 	float CurDegree = FMath::RadiansToDegrees(CurAngle);
-	UE_LOG(LogTemp, Warning, TEXT("BeginOverlap [Cur Degree] %f [Prev Degree] %f"), CurDegree, PrevCrashAngle);
+
 	if (CurDegree * PrevCrashAngle < 1.0f)
 	{
 		bNeedDownsize = true;
 		PrevCrashAngle = CurDegree;
 		return;
 	}
+
 	PrevCrashAngle = CurDegree;
 	bCrashed = true;
 	SolveDir = CloseDir;
+
 	for (int i = CurrentPathIndex; i< PathPoints.Num() && i< CurrentPathIndex + CorrectPathNum; i++)
 	{
 		PathPoints[i] -= (CloseDir  * CorrectPathIntensity);
@@ -223,7 +202,6 @@ void AFormation::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 
 void AFormation::FormationMoveTo(const FVector& Location, const FRotator& Rotation)
 {
-	PrevCrashDir = FVector::ZeroVector;
 	PrevCrashAngle = 0.0f;
 	TargetLocation = Location;
 	TargetRotation = Rotation;
@@ -238,11 +216,12 @@ void AFormation::RegisterAgent(UFormationAgentComponent* AgentComponent)
 void AFormation::RearrangeFormation()
 {
 	int32 UnitNum = FormationAgentComponents.Num();
-	// If there are no enabled agents, do nothing
+	
 	if (UnitNum == 0) return;
 
 	TArray<FAgentData> AssetAgentData = FormationAsset->AgentDatas;
 	TArray<TArray<FAgentData>> AgentDatasByGroupName;
+
 	AgentDatasByGroupName.SetNum(FormationAsset->GroupNames.Num());
 
 	for(const FAgentData& AgentData : FormationAsset->AgentDatas)
@@ -285,7 +264,6 @@ void AFormation::RearrangeFormation()
 				FormationAgentComponentsInGroup.Pop();
 			}
 		}
-
 
 		// Create a cost matrix for the Hungarian algorithm
 		TArray<TArray<float>> CostMatrix;
@@ -339,6 +317,7 @@ void AFormation::RearrangeFormation()
 			AgentData->Priority = GroupData[UnitToSlot[i]].Priority;
 
 			FormationAgentComponentsInGroup[i]->SetAgentData(AgentData);
+			FormationAgentComponentsInGroup[i]->SetRefAgentData(AgentData);
 			FVector Destination = GetActorRotation().RotateVector(GroupData[UnitToSlot[i]].Position) + GetActorLocation();
 
 			AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
@@ -386,36 +365,6 @@ void AFormation::FallInFormation()
 	}
 }
 
-void AFormation::ResizeRefFormationAsset()
-{
-	// Formation Collision Sphere Update By Agents Position
-	TArray<FVector2D> AgentPositions2D;
-	float MaxRadius = 0.0f;
-	for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
-	{
-		if (AgentComponent && AgentComponent->GetAgentData())
-		{
-			FVector Position = AgentComponent->GetAgentData()->Position;
-			AgentPositions2D.Add(FVector2D(Position.X, Position.Y));
-			if (ACharacter* Character = Cast<ACharacter>(AgentComponent->GetOwner()))
-			{
-				FVector Origin, BoxExtent;
-				bool bOnlyCollidingComponents = false;
-				Character->GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent);
-				float MaxXY = FMath::Max(BoxExtent.X, BoxExtent.Y);
-				MaxRadius = FMath::Max(MaxRadius, MaxXY);
-			}
-		}
-	}
-
-	FCircle Circle = FFormationWelzl::GetMinimumEnclosingCircle(AgentPositions2D);
-	RefFormationAsset->FormationRadius = Circle.Radius + MaxRadius;
-	RefFormationAsset->FormationCenter = Circle.Center;
-	FormationAsset->FormationRadius = Circle.Radius + MaxRadius;
-	FormationAsset->FormationCenter = Circle.Center;
-	SphereComponent->SetSphereRadius(FormationAsset->FormationRadius);
-	SphereComponent->SetRelativeLocation(FVector(Circle.Center.X, Circle.Center.Y, 0.f));
-}
 
 void AFormation::MoveFormationStart()
 {
@@ -462,6 +411,41 @@ void AFormation::RearrangeIfAgentsChanged()
 		ResizeRefFormationAsset();
 		PreviousFormationAgentComponents = FormationAgentComponents;
 	}
+}
+
+void AFormation::ResizeRefFormationAsset()
+{
+	// Formation Collision Sphere Update By Agents Position
+	TArray<FVector2D> AgentPositions2D;
+	float MaxRadius = 0.0f;
+
+	for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
+	{
+		if (AgentComponent && AgentComponent->GetRefAgentData())
+		{
+			FVector Position = AgentComponent->GetRefAgentData()->Position;
+			AgentPositions2D.Add(FVector2D(Position.X, Position.Y));
+			if (ACharacter* Character = Cast<ACharacter>(AgentComponent->GetOwner()))
+			{
+				FVector Origin, BoxExtent;
+				bool bOnlyCollidingComponents = false;
+				Character->GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent);
+				float MaxXY = FMath::Max(BoxExtent.X, BoxExtent.Y);
+				MaxRadius = FMath::Max(MaxRadius, MaxXY);
+			}
+		}
+	}
+
+	FCircle Circle = FFormationWelzl::GetMinimumEnclosingCircle(AgentPositions2D);
+
+	RefFormationAsset->FormationRadius = Circle.Radius + MaxRadius;
+	RefFormationAsset->FormationCenter = Circle.Center;
+	FormationAsset->FormationRadius = Circle.Radius + MaxRadius;
+	FormationAsset->FormationCenter = Circle.Center;
+	SphereComponent->SetSphereRadius(FormationAsset->FormationRadius);
+	SphereComponent->SetRelativeLocation(FVector(Circle.Center.X, Circle.Center.Y, 0.f));
+
+	UE_LOG(LogTemp, Display, TEXT("RefFormationAsset %f"), RefFormationAsset->FormationRadius);
 }
 
 void AFormation::UpdateAgentsBehaviorByState()
@@ -537,34 +521,43 @@ void AFormation::UpdateAgentsRotation()
 void AFormation::UpdateAgentsWithoutRotation()
 {
 	AAIController* AIController = Cast<AAIController>(GetController());
+	
 	if (!AIController) return;
 
 	const FVector CurrentLocation = GetActorLocation();
 	const FRotator CurrentRotation = GetActorRotation();
 
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	
 	if (!NavSys) return;
 
 	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(),CurrentLocation,TargetLocation);
+	
 	if (!NavPath || NavPath->PathPoints.Num() == 0)
 	{
 		Phase = EFormationPhase::Idle;
 		return; 
 	}
-	CurrentPathIndex = 0;
 
+	CurrentPathIndex = 0;
 	PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
-	
 	Phase = EFormationPhase::Moving;
 }
 
 void AFormation::UpdateAgentsLocation()
 {
 	AAIController* AIController = Cast<AAIController>(GetController());
+	
 	if (!AIController) return;
 
 	const FVector CurrentLocation = GetActorLocation();
 	const FRotator CurrentRotation = GetActorRotation();
+
+	if (!IsLocationOnNavMesh())
+	{
+		Phase = EFormationPhase::Idle;
+		return;
+	}
 
 	// formation's agents update their position based on the current rotation and target location
 	if (PathPoints.IsValidIndex(CurrentPathIndex))
@@ -634,10 +627,12 @@ void AFormation::ExtendFormation()
 {
 	TArray<AActor*> OverlappingActors;
 	ExtendSphereComponent->GetOverlappingActors(OverlappingActors);
+	
 	if (OverlappingActors.Num() > 0)
 	{
 		return;
 	}
+
 	float ExpansionIntensity = 1.0f + ResizeIntensity;
 	const float MaxRadius = RefFormationAsset->FormationRadius;
 
@@ -663,6 +658,7 @@ void AFormation::ExtendFormation()
 
 		return;
 	}
+
 	SphereComponent->SetSphereRadius(FormationAsset->FormationRadius * ExpansionIntensity);
 	// Resize the formation radius and update the sphere component
 	ResizeFormationData(ExpansionIntensity);
@@ -678,8 +674,6 @@ void AFormation::DownsizeFormation()
 		if (bNeedDownsize || (OverlappingActors.Num() > 1 &&  !bCrashed))
 		{
 			check(FormationAsset);
-			
-			UE_LOG(LogTemp, Error, TEXT("Overlap Num : %d"), OverlappingActors.Num());
 	
 			// Ensure the ResizeFactor is within a reasonable range to prevent extreme scaling
 			const float MinRadius = FormationAsset->FormationMinRadius;
@@ -701,6 +695,7 @@ void AFormation::DownsizeFormation()
 			bNeedDownsize = false;
 		}
 	}
+
 	bCrashed = false;
 }
 
@@ -709,7 +704,6 @@ void AFormation::AdjustLocationToSolveCrash()
 	if (bCrashed)
 	{
 		SetActorLocation(GetActorLocation() - SolveDir * CorrectPathIntensity);
-		// bCrashed = false;
 	}
 }
 
@@ -733,10 +727,13 @@ void AFormation::ResizeFormationData(float ResizeFactor)
 			}
 		}
 		ACharacter* Unit = Cast<ACharacter>(AgentComponent->GetOwner());
+		
 		ensure(Unit);
+		
 		FVector Destination = GetActorRotation().RotateVector(AgentComponent->GetAgentData()->Position) + GetActorLocation();
 
 		AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
+		
 		if (UnitAIController)
 		{
 			UnitAIController->MoveToLocation(Destination, 10.0f);
@@ -750,6 +747,7 @@ void AFormation::MoveFormationAlongPath(float DeltaTime)
 	{
 		FVector NextPoint = PathPoints[CurrentPathIndex];
 		float Distance = FVector::Distance(GetActorLocation(), NextPoint);
+		
 		if (Distance < 1.0f)
 		{
 			CurrentPathIndex++;
@@ -763,6 +761,36 @@ void AFormation::MoveFormationAlongPath(float DeltaTime)
 			SetActorLocation(FMath::VInterpConstantTo(GetActorLocation(),NextPoint, DeltaTime, FormationSpeed));
 		}
 	}
+}
+
+bool AFormation::IsLocationOnNavMesh()
+{
+	if (auto* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		FNavLocation OutLocation;
+		
+		auto temp = GetActorLocation();
+		bool bProjected = NavSys->ProjectPointToNavigation(
+			GetActorLocation(),
+			OutLocation,
+			FVector(50.0f, 50.0f, 200.0f),
+			nullptr
+		);
+
+		if (bProjected)
+		{
+			LastFormationOnNavMeshLocation = OutLocation.Location;
+			return true;
+		}
+		else
+		{
+			SetActorLocation(LastFormationOnNavMeshLocation);
+			GetController()->StopMovement();
+			return false;
+		}
+	}
+
+	return false;
 }
 
 void AFormation::DrawDebugPath(const TArray<FVector>& Path)

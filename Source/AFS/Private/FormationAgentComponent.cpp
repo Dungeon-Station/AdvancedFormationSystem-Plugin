@@ -118,7 +118,6 @@ void UFormationAgentComponent::UpdateAgent(const FVector& Location)
             SCOPE_CYCLE_COUNTER(STAT_UpdateAgent_MovementSetup);
             if (UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
             {
-                MovementComponent->bUseRVOAvoidance = false;  // Disable crowd avoidance.
                 if (FormationOwner)
                 {
                     const float DistanceToTarget = FVector::Distance(Character->GetActorLocation(), Location);
@@ -149,9 +148,23 @@ void UFormationAgentComponent::UpdateAgent(const FVector& Location)
             if (!DesiredDirection.IsNearlyZero() && FormationOwner)
             {
                 // If formation has shrunk, lock orientation and manually rotate.
-                SCOPE_CYCLE_COUNTER(STAT_UpdateAgent_AutoRotation);
-                Character->GetCharacterMovement()->bOrientRotationToMovement = true;
-                Character->AddMovementInput(DesiredDirection, 1.0f);
+                // SCOPE_CYCLE_COUNTER(STAT_UpdateAgent_AutoRotation);
+                // Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+                // Character->AddMovementInput(DesiredDirection, 1.0f);
+
+                if (FormationOwner->GetFormationAsset()->FormationRadius < FormationOwner->GetRefFormationAsset()->FormationRadius)
+                {
+                    Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+                    Character->AddMovementInput(DesiredDirection, 1.0f);
+                    Character->SetActorRotation(FormationOwner->GetActorRotation());
+                }
+                else
+                {
+                    // During normal move, let movement component handle rotation.
+                    Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+                    Character->AddMovementInput(DesiredDirection, 1.0f);
+                }
+                
             }
         }
     }

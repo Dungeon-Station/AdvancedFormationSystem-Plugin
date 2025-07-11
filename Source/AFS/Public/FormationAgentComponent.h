@@ -45,10 +45,20 @@ public:
      */
     UFUNCTION(Blueprintable, Category = "Formation")
     void LostForamation(float DeltaTime);
+
+    /**
+     * Accessor for the underlying original agent data (position, slot index, etc.).
+     */
+    FAgentData* GetRefAgentData() const { return RefAgentData; }
+    
     /**
      * Accessor for the underlying agent data (position, slot index, etc.).
      */
     FAgentData* GetAgentData() const { return AgentData; }
+    /**
+     * Assigns the agent's data struct (filled by formation asset).
+     */
+    void SetRefAgentData(FAgentData* InAgentData) { RefAgentData = InAgentData; }
     /**
      * Assigns the agent's data struct (filled by formation asset).
      */
@@ -73,6 +83,10 @@ public:
 	FName GetGroupName() const { return GroupName; }
 	void SetGroupName(FName InGroupName) { GroupName = InGroupName; }
 private:
+    /**
+     * Pointer to the agent's original position and slot metadata.
+     */
+    FAgentData* RefAgentData;
     /**
      * Pointer to the agent's position and slot metadata.
      */

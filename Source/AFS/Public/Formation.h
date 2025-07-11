@@ -98,8 +98,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	void FallInFormation();
 
-	UFUNCTION(BlueprintCallable, Category = "Formation")
-	void ResizeRefFormationAsset();
 	
 private:
 	/**
@@ -157,6 +155,8 @@ private:
 	 */
 	void MoveFormationAlongPath(float DeltaTime);
 
+	bool IsLocationOnNavMesh();
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     float GetFormationSpeed() const { return FormationSpeed; }
@@ -166,7 +166,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	float GetStrayAgentSpeed() const { return StrayAgentSpeed; }
-	
 	
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     float GetAgentAcceleration() const { return AgentAcceleration; }
@@ -191,7 +190,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	bool IsBroken() { return bBroken; };
-
+	
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void ResizeRefFormationAsset();
+	
 	USphereComponent* GetSphereComponent() const { return SphereComponent; }
 private:
     /** Current operational phase of the formation. */
@@ -283,14 +285,10 @@ private:
     /** Strength of path correction adjustments. */
 	UPROPERTY(EditAnywhere, Category = "Path", meta = (ToolTip = "Strength of the path correction adjustment."))
 	float CorrectPathIntensity = 20.0f;
-
-	// TODO : Check And Remove
-    UPROPERTY(EditAnywhere, Category = "FormationMovement")
-    float FormationRotaionInterpSpeed = 1.0f;
-    
-    /** Last collision direction recorded. */
-    FVector PrevCrashDir = FVector::ZeroVector;
-
+	
+	UPROPERTY()
+	bool bBroken = false;
+	
 	float PrevCrashAngle = 0.0;
     /** Flag indicating a crash/overlap was detected. */
     bool bCrashed = false;
@@ -298,8 +296,6 @@ private:
     /** Direction to apply to resolve a crash. */
     FVector SolveDir = FVector::ZeroVector;
 
-	UPROPERTY()
-	bool bBroken = false;
 	
 	/** Timer handle used for scheduling the revert of expansion. */
 	FTimerHandle ExtendTimerHandle;
@@ -310,6 +306,8 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Formation|Sizing", meta = (ClampMin = "0.1", ToolTip = "Interpolation speed for formation scaling. Minimum value is 0.1."))
 	float ScaleInterpolationSpeed = 2.0f;
+
+	FVector LastFormationOnNavMeshLocation;
 	/* Debug Session */
 	
 public:

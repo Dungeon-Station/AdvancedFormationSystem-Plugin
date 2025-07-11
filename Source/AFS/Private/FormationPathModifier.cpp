@@ -42,11 +42,13 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
     FPathModifierConfig ModifierConfig
 )
 {
-    TArray<FVector> NewPath = Path;
-    if (Path.Num() < 3) return NewPath;
+    if (Path.Num() < 3) return Path;
 
     UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(WorldContext);
+    
     if (!NavSys) return Path;
+
+    TArray<FVector> NewPath = Path;
 
     for (int32 i = 1; i < Path.Num() - 1; i++)
     {
@@ -54,10 +56,7 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
         const FVector& CurrPoint = Path[i];
         const FVector& NextPoint = Path[i + 1];
 
-        FVector V1 = (CurrPoint - PrevPoint).GetSafeNormal();
-        FVector V2 = (CurrPoint - NextPoint).GetSafeNormal();
-        FVector Tangent = (V1 + V2).GetSafeNormal();
-
+        FVector Tangent = ((CurrPoint - PrevPoint).GetSafeNormal() + (CurrPoint - NextPoint).GetSafeNormal()).GetSafeNormal();
         FVector LeftDir = FVector::CrossProduct(Tangent, FVector::UpVector).GetSafeNormal();
         FVector RightDir = -LeftDir;
         FVector MidLeftDir = (Tangent + LeftDir).GetSafeNormal();
@@ -65,10 +64,10 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
 
         FVector BestOffsetPoint = CurrPoint;
         float MaxFreeDistance = TraceRadius;
+        bool bHit = false;
 
         TArray<FVector> CheckDirs = { Tangent, MidLeftDir, LeftDir, MidRightDir, RightDir };
 
-        bool bHit = false;
         for (const FVector& Dir : CheckDirs)
         {
             float AngleRad = FMath::Acos(FVector::DotProduct(Tangent, Dir));
@@ -87,6 +86,7 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
             );
 
             float FreeDistance = OffsetDistance;
+
             if (bHit)
             {
                 float HitDist = FVector::Dist(AdjustedStart, HitLocation);
@@ -150,6 +150,7 @@ TArray<FVector> UFormationPathModifier::ApplySmoothing(
             MergedPath.Add(Path[i]);
         }
     }
+
     if (MergedPath.Num() < 2) return Path;
 
     USplineComponent* TempSplineComponent = NewObject<USplineComponent>();
