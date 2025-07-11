@@ -55,33 +55,33 @@
 - **Member Variables**
 
 | Name                                   | Purpose                                             |
-|-----------------------------------------|-----------------------------------------------------|
-| EFormationPhase                        | Current state (Idle, Rotating, Moving)              |
-| USphereComponent* SphereComponent      | Collision defining formation size                   |
-| USphereComponent* ExtendSphereComponent| Collision for expansion checks                      |
-| UFloatingPawnMovement* MoveComponent   | Controls formation movement                         |
-| TArray<UFormationAgentComponent*> FormationAgentComponents | Agent components currently in the formation         |
-| TArray<UFormationAgentComponent*> PreviousFormationAgentComponents | Agent components from previous tick          |
-| UFormationAsset* RefFormationAsset     | Reference to the original formation data            |
-| UFormationAsset* FormationAsset        | Copy of the formation data (mutable during transformation) |
-| EFormationRearrangeMode RearrangeMode  | Rearrangement mode for the formation                |
-| bool bIsFormationMoveStart             | Whether the formation has started moving            |
-| FVector TargetLocation                 | Target location for movement                        |
-| FRotator TargetRotation                | Target rotation for movement                        |
-| float FormationTurnThreshold           | Total rotation amount when turning                  |
-| float FormationTurnSpeed               | Speed of rotation                                   |
-| float FormationSpeed                   | Formation movement speed                            |
-| float AgentSpeed                       | Common speed for agents within the formation        |
-| float StrayAgentSpeed                  | Speed for agents rejoining the formation            |
-| float AgentAcceleration                | Acceleration for agents                             |
-| TArray<FVector> PathPoints             | Path points for formation movement                  |
-| int32 CurrentPathIndex                 | Current index in the path                           |
-| FPathModifierConfig ModifierConfig     | Path modification settings                          |
-| float ResizeIntensity                  | Intensity of formation transformation               |
-| int32 CorrectPathNum                   | Number of path points to correct on collision       |
-| float CorrectPathIntensity             | Intensity of path correction                        |
-| bool bBroken                           | Whether the formation is disbanded                  |
-| bool bDrawDebug                        | Whether to draw debug elements                      |
+|:-----------------------------------------|:-----------------------------------------------------|
+| **EFormationPhase**                        | Current state (Idle, Rotating, Moving)              |
+| **USphereComponent* SphereComponent**      | Collision defining formation size                   |
+| **USphereComponent* ExtendSphereComponent**| Collision for expansion checks                      |
+| **UFloatingPawnMovement* MoveComponent**   | Controls formation movement                         |
+| **TArray<UFormationAgentComponent*> FormationAgentComponents** | Agent components currently in the formation         |
+| **TArray<UFormationAgentComponent*> PreviousFormationAgentComponents** | Agent components from previous tick          |
+| **UFormationAsset* RefFormationAsset**     | Reference to the original formation data            |
+| **UFormationAsset* FormationAsset**        | Copy of the formation data (mutable during transformation) |
+| **EFormationRearrangeMode RearrangeMode**  | Rearrangement mode for the formation                |
+| **bool bIsFormationMoveStart**             | Whether the formation has started moving            |
+| **FVector TargetLocation**                 | Target location for movement                        |
+| **FRotator TargetRotation**                | Target rotation for movement                        |
+| **float FormationTurnThreshold**           | Total rotation amount when turning                  |
+| **float FormationTurnSpeed**               | Speed of rotation                                   |
+| **float FormationSpeed**                   | Formation movement speed                            |
+| **float AgentSpeed**                       | Common speed for agents within the formation        |
+| **float StrayAgentSpeed**                  | Speed for agents rejoining the formation            |
+| **float AgentAcceleration**                | Acceleration for agents                             |
+| **TArray<FVector> PathPoints**             | Path points for formation movement                  |
+| **int32 CurrentPathIndex**                 | Current index in the path                           |
+| **FPathModifierConfig ModifierConfig**     | Path modification settings                          |
+| **float ResizeIntensity**                  | Intensity of formation transformation               |
+| **int32 CorrectPathNum**                   | Number of path points to correct on collision       |
+| **float CorrectPathIntensity**             | Intensity of path correction                        |
+| **bool bBroken**                           | Whether the formation is disbanded                  |
+| **bool bDrawDebug**                        | Whether to draw debug elements                      |
 
 
 
