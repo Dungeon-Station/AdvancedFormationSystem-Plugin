@@ -4,6 +4,14 @@
 
 This document describes the core classes and components of the Advanced Formation System for Unreal Engine, including their purposes and member variables. Use this as a reference for integration, extension, or understanding the internal structure.
 
+## **Quick Start Guide**
+
+[Click here to see Quick Start Guide](https://www.notion.so/Quick-Start-22cef49bd993806abca0ce2c726bd7a8)
+
+## **Formation Editor Guide**
+
+[Click here to see Formation Editor Guide](https://www.notion.so/Formation-Editor-Guide-22cef49bd993806981b4e0ebd60471fa)
+
 ## **Key Features**
 
 ### **Intuitive Custom Formation Editor**
@@ -62,8 +70,8 @@ Represents a formation entity that manages characters with UFormationAgentCompon
 | **`UFloatingPawnMovement* MoveComponent`**   | Controls formation movement                         |
 | **`TArray<UFormationAgentComponent*> FormationAgentComponents`** | Agent components currently in the formation         |
 | **`TArray<UFormationAgentComponent*> PreviousFormationAgentComponents`** | Agent components from previous tick          |
-| **`UFormationAsset\* RefFormationAsset`**     | Reference to the original formation data            |
-| **`UFormationAsset\* FormationAsset`**        | Copy of the formation data (mutable during transformation) |
+| **`UFormationAsset* RefFormationAsset`**     | Reference to the original formation data            |
+| **`UFormationAsset* FormationAsset`**        | Copy of the formation data (mutable during transformation) |
 | **`EFormationRearrangeMode RearrangeMode`**  | Rearrangement mode for the formation                |
 | **`bool bIsFormationMoveStart`**             | Whether the formation has started moving            |
 | **`FVector TargetLocation`**                 | Target location for movement                        |
