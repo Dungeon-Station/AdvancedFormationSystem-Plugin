@@ -6,11 +6,11 @@ This document describes the core classes and components of the Advanced Formatio
 
 ## **Quick Start Guide**
 
-[Click here to see Quick Start Guide](https://www.notion.so/Quick-Start-22cef49bd993806abca0ce2c726bd7a8)
+<a href="https://www.notion.so/Quick-Start-22cef49bd993806abca0ce2c726bd7a8" target="_blank">Click here to see Quick Start Guide</a>
 
 ## **Formation Editor Guide**
 
-[Click here to see Formation Editor Guide](https://www.notion.so/Formation-Editor-Guide-22cef49bd993806981b4e0ebd60471fa)
+<a href="https://www.notion.so/Formation-Editor-Guide-22cef49bd993806981b4e0ebd60471fa" target="_blank">Click here to see Formation Editor Guide</a>
 
 ## **Key Features**
 
