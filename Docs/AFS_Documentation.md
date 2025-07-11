@@ -53,8 +53,9 @@
     - **Formation Disband/Reformation**: Can temporarily disband and later reform the formation, especially when the formation becomes too small.
 
 - **Member Variables**
+
 | Name                                   | Purpose                                             |
-|----------------------------------------|-----------------------------------------------------|
+|-----------------------------------------|-----------------------------------------------------|
 | EFormationPhase                        | Current state (Idle, Rotating, Moving)              |
 | USphereComponent* SphereComponent      | Collision defining formation size                   |
 | USphereComponent* ExtendSphereComponent| Collision for expansion checks                      |
@@ -81,6 +82,7 @@
 | float CorrectPathIntensity             | Intensity of path correction                        |
 | bool bBroken                           | Whether the formation is disbanded                  |
 | bool bDrawDebug                        | Whether to draw debug elements                      |
+
 
 
 #### **UFormationAgentComponent**
