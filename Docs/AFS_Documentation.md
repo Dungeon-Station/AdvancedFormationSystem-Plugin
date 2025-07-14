@@ -52,11 +52,6 @@ Formations can dynamically adjust to changing conditions, such as losing units o
 The system dynamically generates an optimal travel path for the entire formation using your existing Navmesh. This ensures smooth, intelligent navigation across any environment without requiring complex manual setup.
 
 
-## **Installation and Setup**
-
-Blank
-
-
 ## **Technical Reference**
 
 ### **Actors and Components**

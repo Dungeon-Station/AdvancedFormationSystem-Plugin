@@ -69,10 +69,6 @@ void UFormationAgentComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
     LostForamation(DeltaTime);
-    if (bStray)
-    {
-		UE_LOG(LogTemp, Warning, TEXT("Agent %s is straying from formation!"), *GetOwner()->GetName());
-    }
 }
 
 // Collision callback: adjusts agent movement on impact with static objects.

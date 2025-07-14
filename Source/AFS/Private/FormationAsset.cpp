@@ -2,7 +2,6 @@
 
 UFormationAsset::UFormationAsset()
 {
-    UE_LOG(LogTemp, Warning, TEXT("FormationAsset Created!"));
     GroupUnitPresets.Add({FName("Default"), nullptr}); 
 }
 

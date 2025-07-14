@@ -364,7 +364,6 @@ void AFormation::FallOutFormation()
 {
 	if (!bBroken)
 	{
-		UE_LOG(LogTemp, Display, TEXT("FallOutFormation"));
 		bBroken = true;
 	}
 }
@@ -373,7 +372,6 @@ void AFormation::FallInFormation()
 {
 	if (bBroken)
 	{
-		UE_LOG(LogTemp, Display, TEXT("FallInFormation"));
 		bBroken = false;
 	}
 }
@@ -439,11 +437,9 @@ void AFormation::ResizeRefFormationAsset()
 			AgentPositions2D.Add(FVector2D(Position.X, Position.Y));
 			if (ACharacter* Character = Cast<ACharacter>(AgentComponent->GetOwner()))
 			{
-				FVector Origin, BoxExtent;
-				bool bOnlyCollidingComponents = false;
-				Character->GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent);
-				float MaxXY = FMath::Max(BoxExtent.X, BoxExtent.Y);
-				MaxRadius = FMath::Max(MaxRadius, MaxXY);
+				FBoxSphereBounds CharacterSphere;
+				CharacterSphere = Character->GetMesh()->GetLocalBounds();
+				MaxRadius = FMath::Max(MaxRadius, CharacterSphere.SphereRadius);
 			}
 		}
 	}
@@ -456,8 +452,6 @@ void AFormation::ResizeRefFormationAsset()
 	FormationAsset->FormationCenter = Circle.Center;
 	SphereComponent->SetSphereRadius(FormationAsset->FormationRadius);
 	SphereComponent->SetRelativeLocation(FVector(Circle.Center.X, Circle.Center.Y, 0.f));
-
-	UE_LOG(LogTemp, Display, TEXT("RefFormationAsset %f"), RefFormationAsset->FormationRadius);
 }
 
 void AFormation::UpdateAgentsBehaviorByState()
@@ -742,7 +736,9 @@ void AFormation::ResizeFormationData(float ResizeFactor)
 		ACharacter* Unit = Cast<ACharacter>(AgentComponent->GetOwner());
 		
 		ensure(Unit);
-		
+
+		if (!AgentComponent->GetAgentData())
+			continue;
 		FVector Destination = GetActorRotation().RotateVector(AgentComponent->GetAgentData()->Position) + GetActorLocation();
 
 		AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
@@ -817,7 +813,7 @@ void AFormation::DrawDebugPath(const TArray<FVector>& Path)
 	{
 		for (int32 i = 0; i < Path.Num() - 1; i++)
 		{
-			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, 5.0f, 0, 2.0f);
+			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, -1.0f, 0, 2.0f);
 			DrawDebugSphere(GetWorld(), GetActorLocation(), 30.0f, 12, FColor::Red, false);
 		}
 	}
