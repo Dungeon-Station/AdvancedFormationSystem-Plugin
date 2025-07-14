@@ -21,18 +21,20 @@ Our powerful, user-friendly editor gives you complete freedom to design, save, a
 ### **Formation Movement & Obstacle Avoidance**
     
 Achieve seamless group movement. Units will maintain their position within the formation while navigating around obstacles and complex terrain. The system ensures that your groups move as a disciplined unit, not as a chaotic cluster.
-    
+
 ### **Dynamic Rearrangement and Transformation**
     
 Formations can dynamically adjust to changing conditions, such as losing units or merging with other groups. You can also seamlessly transform one formation into another formation.
-    
+
 ### **Navmesh-Based Dynamic Path Generation**
     
 The system dynamically generates an optimal travel path for the entire formation using your existing Navmesh. This ensures smooth, intelligent navigation across any environment without requiring complex manual setup.
 
+
 ## **Installation and Setup**
 
 Blank
+
 
 ## **Technical Reference**
 
@@ -91,6 +93,15 @@ Represents a formation entity that manages characters with UFormationAgentCompon
 | **`bool bBroken`**                           | Whether the formation is disbanded                  |
 | **`bool bDrawDebug`**                        | Whether to draw debug elements                      |
 
+##### **Rearrange Mode**
+
+OptimalMovement: Selects the best possible movement for each agent to achieve the new formation.
+
+MaintainSlot: Agents remain in their original slots.
+
+ForcedRotation: Agents rotate to face a new direction first, then moves to target location.
+
+
 #### **UFormationAgentComponent**
 
 A component added to actors to make them members of an AFormation. It enables centralized management and movement control as part of the formation.
@@ -126,6 +137,7 @@ A data asset class defining information about a formation, including slot positi
 | **`TArray<FAgentData> AgentDatas`**| Array of all agent slots in the formation                                               |
 | **`TArray<FName> GroupNames`**     | List of group names available for slot assignment                                       |
 
+
 #### **FAgentData**
 Struct used for each agent in the formation asset.
 
@@ -136,6 +148,7 @@ Struct used for each agent in the formation asset.
 | **`int32 Priority`**        | Slot priority (lower values filled first)                      |
 | **`FName GroupName`**       | Group name for the slot (for group-based assignment)           |
 
+
 #### **FPathModifierConfig**
 
 Struct aggregating path modification flags and spline configuration.
@@ -144,6 +157,7 @@ Struct aggregating path modification flags and spline configuration.
 |:--------------------|:--------------------|:-------------------------------------------------------------------------------------------------|
 | `ModifierFlags`     | FPathModifierFlags  | Flags to control which path modifications are applied (offset, smoothing).         |
 | `PathSplineConfig`  | FPathSplineConfig   | Configuration parameters for spline-based path smoothing.                                         |
+
 
 #### **FPathModifierFlags**
 
@@ -169,6 +183,7 @@ Struct containing configuration parameters for spline-based path smoothing.
 - If the Curvature value is set too high, the generated path may extend outside the Navmesh, especially in complex terrain.
 - The MergeThreshold parameter can help reduce tangled paths in environments with many sharp turns. However, if this value is set too large, segments that should remain separate may be merged, resulting in unintended path shapes.
 
+
 ### **Blueprint API**
 
 #### **AFormation Blueprint/Native Functions**
@@ -181,6 +196,7 @@ Struct containing configuration parameters for spline-based path smoothing.
 | `void`     | **`FallOutFormation`**  |                                                      | Temporarily disbands the formation.                     |
 | `void`     | **`FallInFormation`**   |                                                      | Reforms the formation after being disbanded.            |
 | `void`     | **`ResizeRefFormationAsset`** |                                                | Resizes the reference formation asset.                  |
+
 
 #### **UFormationAgentComponent Blueprint/Native Functions**
 
