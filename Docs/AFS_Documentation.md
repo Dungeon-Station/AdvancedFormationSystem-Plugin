@@ -8,7 +8,6 @@ This document describes the core classes and components of the Advanced Formatio
 - [Quick Start Guide](#quick-start-guide)
 - [Formation Editor Guide](#formation-editor-guide)
 - [Key Features](#key-features)
-- [Installation and Setup](#installation-and-setup)
 - [Technical Reference](#technical-reference)
   - [Actors and Components](#actors-and-components)
     - [AFormation](#aformation)
