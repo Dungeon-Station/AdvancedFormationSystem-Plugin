@@ -136,6 +136,39 @@ Struct used for each agent in the formation asset.
 | **`int32 Priority`**        | Slot priority (lower values filled first)                      |
 | **`FName GroupName`**       | Group name for the slot (for group-based assignment)           |
 
+#### **FPathModifierConfig**
+
+Struct aggregating path modification flags and spline configuration.
+
+| Name                | Type                | Purpose                                                                                          |
+|:--------------------|:--------------------|:-------------------------------------------------------------------------------------------------|
+| `ModifierFlags`     | FPathModifierFlags  | Flags to control which path modifications are applied (offset, smoothing).         |
+| `PathSplineConfig`  | FPathSplineConfig   | Configuration parameters for spline-based path smoothing.                                         |
+
+#### **FPathModifierFlags**
+
+Struct controlling which path modification features are enabled.
+
+| Name               | Type   | Purpose                                                                                       |
+|:-------------------|:-------|:---------------------------------------------------------------------------------------------|
+| **`bApplyOffset`**     | bool   | Whether to apply a positional offset that considers the formation radius to the path points.  |
+| **`bApplySmoothing`**  | bool   | Whether to apply smoothing algorithms to the path.                                            |
+| **`bDrawDebug`**       | bool   | Whether to draw debug visuals for the path in the editor.                                     |
+
+
+#### **FPathSplineConfig**
+
+Struct containing configuration parameters for spline-based path smoothing.
+
+| Name            | Type    | Purpose                                                                                       |
+|:----------------|:--------|:---------------------------------------------------------------------------------------------|
+| **`Curvature`**     | float   | Controls the curvature intensity for path smoothing. Higher values result in smoother, more curved paths. |
+| **`MergeThreshold`**| float   | Distance threshold for merging nearby path points.                                            |
+| **`Subdivisions`**  | int32   | Number of subdivisions used when generating the smoothed spline path.                         |
+
+- If the Curvature value is set too high, the generated path may extend outside the Navmesh, especially in complex terrain.
+- The MergeThreshold parameter can help reduce tangled paths in environments with many sharp turns. However, if this value is set too large, segments that should remain separate may be merged, resulting in unintended path shapes.
+
 ### **Blueprint API**
 
 #### **AFormation Blueprint/Native Functions**

@@ -3,50 +3,126 @@
 UFormationAsset::UFormationAsset()
 {
     UE_LOG(LogTemp, Warning, TEXT("FormationAsset Created!"));
-	GroupNames.Add(FName("Default"));
+    GroupUnitPresets.Add({FName("Default"), nullptr}); 
 }
 
-#if WITH_EDITOR
+TSubclassOf<APawn> UFormationAsset::GetUnitPresetForGroup(FName GroupName) const
+{
+    for (const FGroupUnitPreset& Preset : GroupUnitPresets)
+    {
+        if (Preset.GroupName == GroupName)
+        {
+            return Preset.UnitPreset;
+        }
+    }
+
+    if (GroupUnitPresets.Num() > 0)
+    {
+        return GroupUnitPresets[0].UnitPreset;
+    }
+    return nullptr;
+}
+
 TArray<FString> UFormationAsset::GetGroupNameOptions() const
 {
     TArray<FString> Options;
 
-    for (const FName& GroupName : GroupNames)
+    for (auto Group : GroupUnitPresets)
     {
-        if(!GroupName.IsNone())
-        {
-            Options.Add(GroupName.ToString());
-		}
+        Options.Add(Group.GroupName.ToString());
     }
     return Options;
 }
+
+
+#if WITH_EDITOR
+// PreEditChange 함수는 이전과 동일하게 사용합니다.
+void UFormationAsset::PreEditChange(FProperty* PropertyAboutToChange)
+{
+    Super::PreEditChange(PropertyAboutToChange);
+    if (PropertyAboutToChange)
+    {
+        const FName GroupUnitPresetsPropName = GET_MEMBER_NAME_CHECKED(UFormationAsset, GroupUnitPresets);
+        FProperty* Prop = GetClass()->FindPropertyByName(GroupUnitPresetsPropName);
+        
+        CachedGroupUnitPresets = GroupUnitPresets;
+    }
+}
+
 void UFormationAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-    UObject::PostEditChangeProperty(PropertyChangedEvent);
+    Super::PostEditChangeProperty(PropertyChangedEvent);
 
-    if (PropertyChangedEvent.Property)
+    int32 DefaultIndex = GroupUnitPresets.IndexOfByPredicate([](const FGroupUnitPreset& Preset){ return Preset.GroupName == FName("Default"); });
+    if (DefaultIndex == INDEX_NONE)
     {
-        const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+        GroupUnitPresets.Insert({FName("Default"), nullptr}, 0);
+    }
+    else if (DefaultIndex > 0)
+    {
+        FGroupUnitPreset DefaultData = GroupUnitPresets[DefaultIndex];
+        GroupUnitPresets.RemoveAt(DefaultIndex);
+        GroupUnitPresets.Insert(DefaultData, 0);
+    }
 
-        if (PropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, AgentDatas) ||
-            PropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, UnitActorPreset))
-        {
-            OnAgentPositionsChanged.Broadcast();
-        }
+    if (!PropertyChangedEvent.MemberProperty)
+    {
+        return;
+    }
+
+    const FName MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+
+    if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, GroupUnitPresets))
+    {
+        if (CachedGroupUnitPresets.IsEmpty()) return;
+
+        TSet<FName> OldGroupNames;
+        for (const FGroupUnitPreset& Preset : CachedGroupUnitPresets) { OldGroupNames.Add(Preset.GroupName); }
         
-        if (PropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, AgentDatas))
+        TSet<FName> NewGroupNames;
+        for (const FGroupUnitPreset& Preset : GroupUnitPresets) { NewGroupNames.Add(Preset.GroupName); }
+
+        TSet<FName> RemovedNames = OldGroupNames.Difference(NewGroupNames);
+        TSet<FName> AddedNames = NewGroupNames.Difference(OldGroupNames);
+
+        if (CachedGroupUnitPresets.Num() == GroupUnitPresets.Num() && RemovedNames.Num() == 1 && AddedNames.Num() == 1)
         {
-            if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ||
-                PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+            const FName OldName = *RemovedNames.begin();
+            const FName NewName = *AddedNames.begin();
+            for (FAgentData& AgentData : AgentDatas)
             {
-                const int32 NewIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
-                
-                if (AgentDatas.IsValidIndex(NewIndex))
+                if (AgentData.GroupName == OldName)
                 {
-                    AgentDatas[NewIndex].Priority = AgentDatas.Num() - 1;
+                    AgentData.GroupName = NewName;
                 }
             }
         }
+        else
+        {
+            for (FAgentData& AgentData : AgentDatas)
+            {
+                if (!NewGroupNames.Contains(AgentData.GroupName))
+                {
+                    AgentData.GroupName = FName("Default");
+                }
+            }
+        }
+
+        CachedGroupUnitPresets.Empty();
+    }
+    
+    if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, AgentDatas))
+    {
+        if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ||
+            PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+        {
+            const int32 NewIndex = PropertyChangedEvent.GetArrayIndex(MemberPropertyName.ToString());
+            if (AgentDatas.IsValidIndex(NewIndex))
+            {
+                AgentDatas[NewIndex].Priority = AgentDatas.Num() - 1;
+            }
+        }
+        OnAgentPositionsChanged.Broadcast();
     }
 }
 #endif

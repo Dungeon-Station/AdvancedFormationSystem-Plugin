@@ -23,6 +23,11 @@ void UFormationAgentComponent::BeginPlay()
 {
     Super::BeginPlay();
 
+    if (FormationOwner)
+    {
+        FormationOwner->RegisterAgent(this);
+    }
+
     // Initialize character movement settings.
     if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
     {

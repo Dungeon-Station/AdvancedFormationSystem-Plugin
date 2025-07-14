@@ -26,6 +26,8 @@ DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_UpdateNormalAgent"), S
 DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_MoveStrayAgent"), STAT_UpdateAgentsLocation_MoveStrayAgent, STATGROUP_Formation);
 DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_IdleLoop"), STAT_UpdateAgentsLocation_IdleLoop, STATGROUP_Formation);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFormationMoveCompleted);
+
 class UFloatingPawnMovement;
 class USphereComponent;
 class UFormationAgentComponent;
@@ -98,6 +100,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	void FallInFormation();
 
+	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "MoveCompleted"))
+	FFormationMoveCompleted OnFormationMoveCompleted;
 	
 private:
 	/**
@@ -308,12 +312,13 @@ private:
 	float ScaleInterpolationSpeed = 2.0f;
 
 	FVector LastFormationOnNavMeshLocation;
+
 	/* Debug Session */
-	
 public:
 	/** Enable or disable debug drawing of formation behavior. */
 	UPROPERTY(EditAnywhere, Category = "Formation Debug", meta = (ToolTip = "Whether to draw debug information for the formation."))
 	bool bDrawDebug = true;
+
 private:
 	
 	void DrawDebugPath(const TArray<FVector>& Path);

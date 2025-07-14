@@ -222,6 +222,39 @@ void FFormationEditorViewportClient::DrawPriorityNumbers(FViewport* InViewport, 
     }
 }
 
+bool FFormationEditorViewportClient::CheckGroupChanged()
+{
+    static TArray<FGroupUnitPreset> LastGroupPresets;
+
+    bool IsDirty = false;
+    
+    if (EditedFormation->GroupUnitPresets.Num() != LastGroupPresets.Num())
+    {
+        IsDirty = true;
+    }
+    else
+    {
+        for (int32 i = 0; i < EditedFormation->GroupUnitPresets.Num(); ++i)
+        {
+            const FGroupUnitPreset& CurrentPreset = EditedFormation->GroupUnitPresets[i];
+            const FGroupUnitPreset& LastPreset = LastGroupPresets[i];
+            
+            if (CurrentPreset.GroupName != LastPreset.GroupName || CurrentPreset.UnitPreset != LastPreset.UnitPreset)
+            {
+                IsDirty = true;
+                break;
+            }
+        }
+    }
+    
+    if (IsDirty)
+    {
+        LastGroupPresets = EditedFormation->GroupUnitPresets;
+    }
+
+    return IsDirty;
+}
+
 void FFormationEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
     FEditorViewportClient::Draw(InViewport, Canvas);
@@ -252,19 +285,17 @@ void FFormationEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas
     }
 
     static TArray<FAgentData> LastUnitPositions;
-    static TSubclassOf<AActor> LastUnitActorPreset;
-
+    
     if (EditedFormation && EditedFormation->AgentDatas != LastUnitPositions)
     {
         UpdatePreviewActors();
         LastUnitPositions = EditedFormation->AgentDatas;
     }
 
-    if (EditedFormation && EditedFormation->UnitActorPreset != LastUnitActorPreset)
+    if (EditedFormation &&  CheckGroupChanged())
     {
         ClearSelection();
         SpawnPreviewActors();
-        LastUnitActorPreset =EditedFormation->UnitActorPreset;
     }
 
     if (EnumHasAnyFlags(CurrentShowFlags, EFormationShowFlags::PriorityNumbers)) {
@@ -830,15 +861,20 @@ void FFormationEditorViewportClient::SpawnPreviewActors()
         VirtualLeaderActor = NewLeaderActor;
     }
 
-
-    TSubclassOf<AActor> SpawnClass = AStaticMeshActor::StaticClass(); 
-    if (EditedFormation && EditedFormation->UnitActorPreset)
-    {
-        SpawnClass = EditedFormation->UnitActorPreset;
-    }
+    // TSubclassOf<AActor> SpawnClass = AStaticMeshActor::StaticClass(); 
+    // if (EditedFormation && EditedFormation->UnitActorPreset)
+    // {
+    //     // SpawnClass = EditedFormation->UnitActorPreset;
+    //     SpawnClass = EditedFormation->GetUnitPresetForGroup(UnitData.GroupName);
+    // }
     
     for (const FAgentData& UnitData : EditedFormation->AgentDatas)
     {
+        TSubclassOf<AActor> SpawnClass = AStaticMeshActor::StaticClass(); 
+        if (EditedFormation && !EditedFormation->GroupUnitPresets.IsEmpty())
+        {
+            SpawnClass = EditedFormation->GetUnitPresetForGroup(UnitData.GroupName);
+        }
         FActorSpawnParameters SpawnParams;
         SpawnParams.bNoFail = true;
         SpawnParams.ObjectFlags = RF_Transient | RF_DuplicateTransient;

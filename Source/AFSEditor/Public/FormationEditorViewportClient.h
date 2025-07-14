@@ -31,6 +31,7 @@ public:
     ~FFormationEditorViewportClient();
 
     void DrawPriorityNumbers(FViewport* InViewport, FCanvas* Canvas);
+    bool CheckGroupChanged();
     virtual void Draw(FViewport* InViewport, FCanvas* Canvas) override; 
     virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
     void DrawCustomGrid(FPrimitiveDrawInterface* PDI);

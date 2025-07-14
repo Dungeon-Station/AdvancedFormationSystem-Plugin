@@ -222,12 +222,19 @@ void AFormation::RearrangeFormation()
 	TArray<FAgentData> AssetAgentData = FormationAsset->AgentDatas;
 	TArray<TArray<FAgentData>> AgentDatasByGroupName;
 
-	AgentDatasByGroupName.SetNum(FormationAsset->GroupNames.Num());
+	AgentDatasByGroupName.SetNum(FormationAsset->GroupUnitPresets.Num());
 
 	for(const FAgentData& AgentData : FormationAsset->AgentDatas)
 	{
-		int32 GroupIndex = FormationAsset->GroupNames.IndexOfByKey(AgentData.GroupName);
-		AgentDatasByGroupName[GroupIndex].Add(AgentData);
+		int32 GroupIndex = FormationAsset->GetGroupNameOptions().IndexOfByKey(AgentData.GroupName);
+		if (GroupIndex > -1)
+		{
+			AgentDatasByGroupName[GroupIndex].Add(AgentData);
+		}
+		else
+		{
+			AgentDatasByGroupName[0].Add(AgentData);
+		}
 	}
 	
 	for(TArray<FAgentData>& GroupData : AgentDatasByGroupName)
@@ -593,6 +600,7 @@ void AFormation::UpdateAgentsLocation()
 	}
 	else
 	{
+		OnFormationMoveCompleted.Broadcast();
 		Phase = EFormationPhase::Idle;
 		SCOPE_CYCLE_COUNTER(STAT_UpdateAgentsLocation_IdleLoop);
 		for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
@@ -674,7 +682,6 @@ void AFormation::DownsizeFormation()
 		if (bNeedDownsize || (OverlappingActors.Num() > 1 &&  !bCrashed))
 		{
 			check(FormationAsset);
-	
 			// Ensure the ResizeFactor is within a reasonable range to prevent extreme scaling
 			const float MinRadius = FormationAsset->FormationMinRadius;
 			float DownsizeIntensity = 1.0f - ResizeIntensity;

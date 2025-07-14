@@ -36,6 +36,17 @@ struct FAgentData
 	}
 };
 
+USTRUCT(BlueprintType)
+struct FGroupUnitPreset
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName GroupName = FName("Default");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<APawn> UnitPreset;
+};
 /**
  * A Data Asset that defines the shape and properties of a formation.
  */
@@ -65,14 +76,13 @@ public:
     /** The list of all agent slots that make up this formation. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Agents", meta=(DisplayName="Agent Data", ToolTip="The list of all agent slots that make up this formation."))
     TArray<FAgentData> AgentDatas;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation", meta = (DisplayName = "Group Names", ToolTip = "The names of the groups that this formation belongs to."))
-	TArray<FName> GroupNames;
 	
-	/** The default Pawn class to spawn for each agent slot. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Formation", meta=(DisplayName="Unit Actor Preset", ToolTip="The default Pawn class to spawn for each agent slot."))
-	TSubclassOf<APawn> UnitActorPreset;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Formation", meta=(DisplayName="Group Unit Presets"))
+	TArray<FGroupUnitPreset> GroupUnitPresets;
+	
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	TSubclassOf<APawn> GetUnitPresetForGroup(FName GroupName) const;
+	
 	UFUNCTION()
 	TArray<FString> GetGroupNameOptions() const;
 
@@ -80,8 +90,15 @@ public:
 	OnAgentDatasChanged OnAgentPositionsChanged;
 	
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	
 	bool bIsUpdatingFromDataChange = false;
+private:
+#if WITH_EDITORONLY_DATA
+	// GroupUnitPresets가 변경되기 전의 상태를 임시로 저장하는 변수
+	TArray<FGroupUnitPreset> CachedGroupUnitPresets;
+#endif
 };
+
