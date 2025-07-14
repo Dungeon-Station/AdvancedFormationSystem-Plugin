@@ -4,6 +4,33 @@
 
 This document describes the core classes and components of the Advanced Formation System for Unreal Engine, including their purposes and member variables. Use this as a reference for integration, extension, or understanding the internal structure.
 
+## Index
+- [Quick Start Guide](#quick-start-guide)
+- [Formation Editor Guide](#formation-editor-guide)
+- [Key Features](#key-features)
+  - [Intuitive Custom Formation Editor](#intuitive-custom-formation-editor)
+  - [Formation Movement & Obstacle Avoidance](#formation-movement-obstacle-avoidance)
+  - [Dynamic Rearrangement and Transformation](#dynamic-rearrangement-and-transformation)
+  - [Navmesh-Based Dynamic Path Generation](#navmesh-based-dynamic-path-generation)
+- [Installation and Setup](#installation-and-setup)
+- [Technical Reference](#technical-reference)
+  - [Actors and Components](#actors-and-components)
+    - [AFormation](#aformation)
+      - [Components of AFormation](#components-of-aformation)
+      - [Main Features](#main-features)
+      - [Member Variables](#member-variables)
+        - [Rearrange Mode](#rearrange-mode)
+    - [UFormationAgentComponent](#uformationagentcomponent)
+    - [UFormationAsset](#uformationasset)
+    - [FAgentData](#fagentdata)
+    - [FPathModifierConfig](#fpathmodifierconfig)
+    - [FPathModifierFlags](#fpathmodifierflags)
+    - [FPathSplineConfig](#fpathsplineconfig)
+- [Blueprint API](#blueprint-api)
+  - [AFormation Blueprint/Native Functions](#aformation-blueprintnative-functions)
+  - [UFormationAgentComponent Blueprint/Native Functions](#uformationagentcomponent-blueprintnative-functions)
+
+
 ## **Quick Start Guide**
 
 <a href="https://docs.google.com/document/d/1POnYppEOzGx3zGe-9xcjTadZXVfd7frvdmD3qeWJs-k/edit?tab=t.0" target="_blank">Click here to see Quick Start Guide</a>

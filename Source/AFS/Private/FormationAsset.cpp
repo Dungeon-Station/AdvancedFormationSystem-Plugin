@@ -36,7 +36,6 @@ TArray<FString> UFormationAsset::GetGroupNameOptions() const
 
 
 #if WITH_EDITOR
-// PreEditChange 함수는 이전과 동일하게 사용합니다.
 void UFormationAsset::PreEditChange(FProperty* PropertyAboutToChange)
 {
     Super::PreEditChange(PropertyAboutToChange);

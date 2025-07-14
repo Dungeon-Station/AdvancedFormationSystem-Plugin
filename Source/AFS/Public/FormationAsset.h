@@ -41,10 +41,10 @@ struct FGroupUnitPreset
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent Data")
 	FName GroupName = FName("Default");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent Data")
 	TSubclassOf<APawn> UnitPreset;
 };
 /**

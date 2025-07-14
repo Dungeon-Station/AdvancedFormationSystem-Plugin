@@ -105,6 +105,11 @@ void AFormation::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
+	if(RefFormationAsset == nullptr || FormationAsset == nullptr)
+	{
+		return;
+	}
+
 	ExtendSphereComponent->SetSphereRadius(SphereComponent->GetUnscaledSphereRadius() * 1.1f);
 
 	{
@@ -136,6 +141,7 @@ void AFormation::Tick(float DeltaTime)
 		SCOPE_CYCLE_COUNTER(STAT_DownsizeFormation);
 		DownsizeFormation();
 	}
+	
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DrawDebugPath);
@@ -372,7 +378,6 @@ void AFormation::FallInFormation()
 	}
 }
 
-
 void AFormation::MoveFormationStart()
 {
 	const FRotator CurrentRotation = GetActorRotation();
@@ -562,6 +567,7 @@ void AFormation::UpdateAgentsLocation()
 
 	if (!IsLocationOnNavMesh())
 	{
+		OnFormationMoveCompleted.Broadcast();
 		Phase = EFormationPhase::Idle;
 		return;
 	}
@@ -758,6 +764,11 @@ void AFormation::MoveFormationAlongPath(float DeltaTime)
 		if (Distance < 1.0f)
 		{
 			CurrentPathIndex++;
+
+			if (!PathPoints.IsValidIndex(CurrentPathIndex))
+			{
+				Phase = EFormationPhase::Idle;
+			}
 		}
 		else
 		{

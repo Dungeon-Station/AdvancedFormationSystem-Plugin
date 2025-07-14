@@ -9,6 +9,8 @@
 #include "Stats/Stats.h"
 #include "Formation.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFormationMoveCompleted, bool, bSuccess);
+
 DECLARE_STATS_GROUP(TEXT("Formation"), STATGROUP_Formation, STATCAT_Advanced);
 
 DECLARE_CYCLE_STAT(TEXT("Formation - FormationTick"), STAT_FormationTick, STATGROUP_Formation);
@@ -102,7 +104,8 @@ public:
 
 	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "MoveCompleted"))
 	FFormationMoveCompleted OnFormationMoveCompleted;
-	
+
+    
 private:
 	/**
 	 * Sets up movement state when starting a new move command.
@@ -318,6 +321,7 @@ public:
 	/** Enable or disable debug drawing of formation behavior. */
 	UPROPERTY(EditAnywhere, Category = "Formation Debug", meta = (ToolTip = "Whether to draw debug information for the formation."))
 	bool bDrawDebug = true;
+
 
 private:
 	

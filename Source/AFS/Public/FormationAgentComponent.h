@@ -94,7 +94,7 @@ private:
     /**
      * The formation that owns and commands this agent.
      */
-    UPROPERTY(EditAnywhere, Category = "Formation")
+    UPROPERTY(EditInstanceOnly, Category = "Formation")
     AFormation* FormationOwner;
 
 	UPROPERTY(EditAnywhere, Category = "Formation")
