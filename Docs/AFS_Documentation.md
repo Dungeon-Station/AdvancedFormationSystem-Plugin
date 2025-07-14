@@ -75,7 +75,7 @@ Represents a formation entity that manages characters with UFormationAgentCompon
     - **Move Component (UFloatingPawnMovement)**: Handles the movement of the AFormation actor.
 
 - **Main Features**
-    - **Formation Creation**: Reads data from UFormationAsset to create the formation. Uses FFormationHungarian for optimal and fast arrangement.
+    - **Formation Creation**: Reads data from UFormationAsset to create the formation. Uses FFormationHungarian for optimal arrangement.
 
     - **Formation Movement**: Generates a path using Unreal Engine's Navigation system, then modifies it (using FFormationPathModifier) to account for the formation's size. Continuously updates the path and commands agents to move accordingly.
 

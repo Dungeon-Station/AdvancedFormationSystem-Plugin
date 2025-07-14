@@ -3,11 +3,11 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "AFS",
-	"Description": "",
+	"Description": "Advanced Formation System (AFS) provides dynamic formation management, movement, and pathfinding features for Unreal Engine projects. Includes a custom formation editor, seamless group navigation, and flexible API for integration.",
 	"Category": "Other",
-	"CreatedBy": "",
+	"CreatedBy": "DungeonStation",
 	"CreatedByURL": "",
-	"DocsURL": "",
+	"DocsURL": "https://github.com/Dungeon-Station/AdvancedFormationSystem-Plugin/blob/main/Docs/AFS_Documentation.md#rearrange-mode",
 	"FabURL": "com.epicgames.launcher://ue/Fab/product//cecc4fa9-e7ee-494b-b54e-7c46063557db",
 	"MarketplaceURL": "",
 	"SupportURL": "",
@@ -30,3 +30,4 @@
 	"Plugins": [
 	]
 }
+
