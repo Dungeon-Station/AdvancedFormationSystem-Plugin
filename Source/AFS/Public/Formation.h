@@ -1,5 +1,6 @@
-// Formation.h
-// Responsible for managing a group of agents moving and rotating in formation.
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #pragma once
 
@@ -302,7 +303,7 @@ private:
 	bool bNeedDownsize = false;
     /** Direction to apply to resolve a crash. */
     FVector SolveDir = FVector::ZeroVector;
-
+	float OverlapDepth = 0.0f;
 	
 	/** Timer handle used for scheduling the revert of expansion. */
 	FTimerHandle ExtendTimerHandle;

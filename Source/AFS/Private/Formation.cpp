@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #include "Formation.h"
 #include "FormationAgentComponent.h"
 #include "FormationAsset.h"
@@ -14,7 +18,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "FormationWelzl.h"
 #include "UObject/Package.h"
-
+#include "Components/SkeletalMeshComponent.h"
 
 AFormation::AFormation()
 {
@@ -142,7 +146,6 @@ void AFormation::Tick(float DeltaTime)
 		DownsizeFormation();
 	}
 	
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DrawDebugPath);
 		DrawDebugPath(PathPoints);
@@ -168,11 +171,15 @@ void AFormation::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 	FVector ClosestPointOnOther = FVector::ZeroVector;
 	
 	OtherComp->GetClosestPointOnCollision(MyCenter, ClosestPointOnOther);
-	
+
+	float DistanceToClosestPoint = FVector::Dist(MyCenter, ClosestPointOnOther);
+
 	float MyRadius = SphereComponent->GetScaledSphereRadius();
+	OverlapDepth = FMath::Max( 0.0f, MyRadius - DistanceToClosestPoint);
+	
 	FVector Dir = (ClosestPointOnOther - MyCenter).GetSafeNormal();
 	FVector ImpactPoint = MyCenter + Dir * MyRadius;
-	
+
 	if (bDrawDebug)
 	{
 		DrawDebugSphere(GetWorld(), ImpactPoint, 20.0f, 12, FColor::Red, false, 2.0f);
@@ -188,8 +195,7 @@ void AFormation::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 	}
 	
 	float CurDegree = FMath::RadiansToDegrees(CurAngle);
-
-	if (CurDegree * PrevCrashAngle < 1.0f)
+	if (CurDegree * PrevCrashAngle < 0.0f)
 	{
 		bNeedDownsize = true;
 		PrevCrashAngle = CurDegree;
@@ -199,10 +205,11 @@ void AFormation::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 	PrevCrashAngle = CurDegree;
 	bCrashed = true;
 	SolveDir = CloseDir;
-
+	SolveDir.Z = 0.0f;
+	float CorrectIntencity = FMath::Max( OverlapDepth * 1.5, CorrectPathIntensity);
 	for (int i = CurrentPathIndex; i< PathPoints.Num() && i< CurrentPathIndex + CorrectPathNum; i++)
 	{
-		PathPoints[i] -= (CloseDir  * CorrectPathIntensity);
+		PathPoints[i] -= (SolveDir * CorrectIntencity);
 	}
 }
 
@@ -501,21 +508,19 @@ void AFormation::UpdateAgentsRotation()
 	float AbsDeltaYaw = FMath::Abs(FormationTurnThreshold);
 	if(AbsDeltaYaw - FormationTurnSpeed < 0.0f)
 	{
-		if (AIController)
+		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (!NavSys) return;
+
+		UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(),CurrentLocation,TargetLocation);
+		if (!NavPath || NavPath->PathPoints.Num() == 0)
 		{
-			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-			if (!NavSys) return;
-
-			UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(),CurrentLocation,TargetLocation);
-			if (!NavPath || NavPath->PathPoints.Num() == 0)
-			{
-				Phase = EFormationPhase::Idle;
-				return; 
-			}
-			CurrentPathIndex = 0;
-
-			PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
+			OnFormationMoveCompleted.Broadcast();
+			Phase = EFormationPhase::Idle;
+			return; 
 		}
+		CurrentPathIndex = 0;
+
+		PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
 
 		Phase = EFormationPhase::Moving;
 	}
@@ -541,6 +546,7 @@ void AFormation::UpdateAgentsWithoutRotation()
 	
 	if (!NavPath || NavPath->PathPoints.Num() == 0)
 	{
+		OnFormationMoveCompleted.Broadcast();
 		Phase = EFormationPhase::Idle;
 		return; 
 	}
@@ -558,13 +564,6 @@ void AFormation::UpdateAgentsLocation()
 
 	const FVector CurrentLocation = GetActorLocation();
 	const FRotator CurrentRotation = GetActorRotation();
-
-	if (!IsLocationOnNavMesh())
-	{
-		OnFormationMoveCompleted.Broadcast();
-		Phase = EFormationPhase::Idle;
-		return;
-	}
 
 	// formation's agents update their position based on the current rotation and target location
 	if (PathPoints.IsValidIndex(CurrentPathIndex))
@@ -710,7 +709,8 @@ void AFormation::AdjustLocationToSolveCrash()
 {
 	if (bCrashed)
 	{
-		SetActorLocation(GetActorLocation() - SolveDir * CorrectPathIntensity);
+		float CorrectIntencity = FMath::Max( OverlapDepth * 1.5, CorrectPathIntensity);
+		SetActorLocation(GetActorLocation() - SolveDir * CorrectIntencity);
 	}
 }
 
@@ -720,7 +720,8 @@ void AFormation::ResizeFormationData(float ResizeFactor)
 	// Resize the formation asset's agent data positions
 	for (FAgentData& AgentData : FormationAsset->AgentDatas)
 	{
-		AgentData.Position *= ResizeFactor;
+		AgentData.Position.X *= ResizeFactor;
+		AgentData.Position.Y *= ResizeFactor;
 	}
 	// Update the formation's Components AgentData positions
 	for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
@@ -730,7 +731,8 @@ void AFormation::ResizeFormationData(float ResizeFactor)
 			FAgentData* AgentData = AgentComponent->GetAgentData();
 			if (AgentData)
 			{
-				AgentData->Position *= ResizeFactor;
+				AgentData->Position.X *= ResizeFactor;
+				AgentData->Position.Y *= ResizeFactor;
 			}
 		}
 		ACharacter* Unit = Cast<ACharacter>(AgentComponent->GetOwner());
@@ -760,11 +762,6 @@ void AFormation::MoveFormationAlongPath(float DeltaTime)
 		if (Distance < 1.0f)
 		{
 			CurrentPathIndex++;
-
-			if (!PathPoints.IsValidIndex(CurrentPathIndex))
-			{
-				Phase = EFormationPhase::Idle;
-			}
 		}
 		else
 		{
@@ -813,7 +810,7 @@ void AFormation::DrawDebugPath(const TArray<FVector>& Path)
 	{
 		for (int32 i = 0; i < Path.Num() - 1; i++)
 		{
-			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, -1.0f, 0, 2.0f);
+			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, 5.0f, 0, 5.0f);
 			DrawDebugSphere(GetWorld(), GetActorLocation(), 30.0f, 12, FColor::Red, false);
 		}
 	}

@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #include "FormationAgentComponent.h"
 #include "Formation.h"
 #include "FormationAsset.h"
@@ -40,7 +44,7 @@ void UFormationAgentComponent::BeginPlay()
     }
 }
 
-void UFormationAgentComponent::LostForamation(float DeltaTime)
+void UFormationAgentComponent::LostFormation(float DeltaTime)
 {
     if (FormationOwner && FVector::Distance(GetOwner()->GetActorLocation(), TargetLocation) > FormationOwner->GetSphereComponent()->GetScaledSphereRadius()
         && FVector::Distance(GetOwner()->GetActorLocation(), FormationOwner->GetActorLocation()) > FormationOwner->GetSphereComponent()->GetScaledSphereRadius())
@@ -68,7 +72,7 @@ void UFormationAgentComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    LostForamation(DeltaTime);
+    LostFormation(DeltaTime);
 }
 
 // Collision callback: adjusts agent movement on impact with static objects.

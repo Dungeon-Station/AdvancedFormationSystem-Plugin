@@ -1,10 +1,10 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #include "FormationEditorViewport.h"
-
 #include "AdvancedPreviewScene.h"
-#include "EditorStyleSet.h"
 #include "FormationEditorViewportClient.h"
-#include "Widgets/Input/SSlider.h"
 
 void SFormationEditorViewport::Construct(const FArguments& InArgs)
 {

@@ -1,5 +1,6 @@
-// FormationAgentComponent.h
-// Component for individual agents to interact with the formation and navigation systems.
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #pragma once
 
@@ -44,7 +45,7 @@ public:
      If you wanna change the lost timing, customize this function 
      */
     UFUNCTION(Blueprintable, Category = "Formation")
-    void LostForamation(float DeltaTime);
+    void LostFormation(float DeltaTime);
 
     /**
      * Accessor for the underlying original agent data (position, slot index, etc.).

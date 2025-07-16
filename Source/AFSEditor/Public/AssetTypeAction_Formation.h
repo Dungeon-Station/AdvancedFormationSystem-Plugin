@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #pragma once
 
 #include "AssetTypeActions_Base.h"

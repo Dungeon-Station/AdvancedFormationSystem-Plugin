@@ -1,5 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #include "FormationHungarian.h"
 

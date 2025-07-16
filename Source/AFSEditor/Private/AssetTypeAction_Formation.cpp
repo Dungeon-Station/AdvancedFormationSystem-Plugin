@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #include "AssetTypeAction_Formation.h"
 #include "FormationAsset.h"
 #include "FormationEditorToolkit.h" 

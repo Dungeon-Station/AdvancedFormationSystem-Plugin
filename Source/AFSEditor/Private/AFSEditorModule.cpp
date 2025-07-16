@@ -1,6 +1,10 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #include "../Public/AFSEditorModule.h"
 #include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"  // Asset Tools 모듈
+#include "AssetToolsModule.h" 
 #include "AssetTypeAction_Formation.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "IAssetTools.h"

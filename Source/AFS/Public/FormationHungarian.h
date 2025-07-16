@@ -1,4 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #pragma once
 
@@ -13,6 +15,5 @@ public:
 	FFormationHungarian();
 	~FFormationHungarian();
 
-	UFUNCTION()
 	static void Solve(const TArray<TArray<float>>& CostMatrix, TArray<int32>& OutU2V, TArray<int32>& OutV2U);
 };

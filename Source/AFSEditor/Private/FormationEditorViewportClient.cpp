@@ -1,5 +1,8 @@
-#include "FormationEditorViewportClient.h"
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
+#include "FormationEditorViewportClient.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "FormationAsset.h"
@@ -113,8 +116,7 @@ void FFormationEditorViewportClient::ForceDestroyPreviewActors()
                         Component->DestroyComponent();
                     }
                 }
-
-                // Actor 
+                
                 //Actor->MarkPendingKill();
                 Actor->Destroy();
 
@@ -127,8 +129,7 @@ void FFormationEditorViewportClient::ForceDestroyPreviewActors()
     PreviewActors.Empty();
     SelectedActors.Empty();
     SelectedIndices.Empty();
-
-    // 3. Preview Scene
+    
     if (PreviewScene)
     {
         FlushRenderingCommands();
@@ -149,7 +150,7 @@ void FFormationEditorViewportClient::DrawVirtualLeader(FPrimitiveDrawInterface* 
 void FFormationEditorViewportClient::DrawForwardArrow(FPrimitiveDrawInterface* PDI)
 {
     if (!PreviewScene) return ;
-    // DrawForwardArrow() 를 PDI로 대체
+    
     const FVector Start = FVector(EditedFormation->FormationRadius, 0, 0);
     const FVector End = FVector(EditedFormation->FormationRadius + 300, 0, 0);
     const float ArrowSize = 60.0f;

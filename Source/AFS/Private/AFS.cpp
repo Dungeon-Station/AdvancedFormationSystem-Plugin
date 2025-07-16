@@ -1,4 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 #include "AFS.h"
 

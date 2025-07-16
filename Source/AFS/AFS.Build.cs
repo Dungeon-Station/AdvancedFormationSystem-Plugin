@@ -1,4 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
 
 using UnrealBuildTool;
 
@@ -27,7 +29,7 @@ public class AFS : ModuleRules
 			{
 				"Core",
 				"AIModule",
-                "NavigationSystem",
+                "NavigationSystem"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

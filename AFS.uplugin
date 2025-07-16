@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "1.0.0",
 	"FriendlyName": "AFS",
 	"Description": "Advanced Formation System (AFS) provides dynamic formation management, movement, and pathfinding features for Unreal Engine projects. Includes a custom formation editor, seamless group navigation, and flexible API for integration.",
 	"Category": "Other",
@@ -11,6 +11,7 @@
 	"FabURL": "com.epicgames.launcher://ue/Fab/product//cecc4fa9-e7ee-494b-b54e-7c46063557db",
 	"MarketplaceURL": "",
 	"SupportURL": "",
+	"EngineVersion" : "5.6.0",
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
@@ -19,15 +20,19 @@
 		{
 			"Name": "AFS",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "AFSEditor",
 			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		}
-	],
-	"Plugins": [
 	]
 }
 

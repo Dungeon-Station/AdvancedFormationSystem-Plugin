@@ -1,15 +1,15 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Delegates/Delegate.h"
 #include "FormationAsset.generated.h"
-
 DECLARE_MULTICAST_DELEGATE(OnAgentDatasChanged);
 
-/**
- * Defines the slot data for a single agent in a formation.
- */
 USTRUCT(BlueprintType)
 struct FAgentData
 {
@@ -97,7 +97,6 @@ public:
 	bool bIsUpdatingFromDataChange = false;
 private:
 #if WITH_EDITORONLY_DATA
-	// GroupUnitPresets가 변경되기 전의 상태를 임시로 저장하는 변수
 	TArray<FGroupUnitPreset> CachedGroupUnitPresets;
 #endif
 };

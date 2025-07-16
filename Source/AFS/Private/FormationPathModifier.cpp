@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 #include "FormationPathModifier.h"
 #include "FormationAsset.h"
 #include "NavigationSystem.h"
@@ -56,7 +60,18 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
         const FVector& CurrPoint = Path[i];
         const FVector& NextPoint = Path[i + 1];
 
-        FVector Tangent = ((CurrPoint - PrevPoint).GetSafeNormal() + (CurrPoint - NextPoint).GetSafeNormal()).GetSafeNormal();
+        const FVector2D DirToCurrent(CurrPoint.X - PrevPoint.X, CurrPoint.Y - PrevPoint.Y);
+        const FVector2D DirToNext(NextPoint.X - CurrPoint.X, NextPoint.Y - CurrPoint.Y);
+
+        const FVector TravelDir = FVector(NextPoint.X - PrevPoint.X, NextPoint.Y - PrevPoint.Y, 0.f).GetSafeNormal();
+
+        const FVector SideDir = FVector::CrossProduct(TravelDir, FVector::UpVector);
+
+        const float TurnDirectionSign = FVector2D::CrossProduct(DirToCurrent, DirToNext);
+
+        const FVector OutwardDir = (TurnDirectionSign < 0) ? -SideDir : SideDir;
+        const FVector& Tangent = OutwardDir;
+
         FVector LeftDir = FVector::CrossProduct(Tangent, FVector::UpVector).GetSafeNormal();
         FVector RightDir = -LeftDir;
         FVector MidLeftDir = (Tangent + LeftDir).GetSafeNormal();
@@ -74,7 +89,7 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
             float AngleRatio = AngleRad / (PI / 2);
             float DynamicTraceRadius = TraceRadius * (1.0f + AngleRatio * 0.5f);
 
-            FVector AdjustedStart = CurrPoint + Dir * 10.0f;
+            FVector AdjustedStart = CurrPoint + Dir * 30.0f;
             FVector TraceEnd = AdjustedStart + Dir * (TraceRadius);
             FVector HitLocation;
 
@@ -104,6 +119,7 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
                 FColor RayColor = FColor::Blue;
 
                 DrawDebugLine(WorldContext, AdjustedStart, TraceEnd, RayColor, false, 5.0f, 0, 2.0f);
+                DrawDebugSphere(WorldContext, AdjustedStart, 15.0f, 8, FColor::Green, false, 5.0f);
                 if (bHit) DrawDebugSphere(WorldContext, HitLocation, 15.0f, 8, FColor::Red, false, 5.0f);
             }
 #endif

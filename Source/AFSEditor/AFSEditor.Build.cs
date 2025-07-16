@@ -1,3 +1,7 @@
+/*
+* Copyright 2025 DungeonStation, All Rights Reserved.
+*/
+
 using UnrealBuildTool;
 
 public class AFSEditor : ModuleRules
