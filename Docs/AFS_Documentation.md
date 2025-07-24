@@ -20,8 +20,10 @@ This document describes the core classes and components of the Advanced Formatio
     - [FPathModifierFlags](#fpathmodifierflags)
     - [FPathSplineConfig](#fpathsplineconfig)
 - [Blueprint API](#blueprint-api)
+  - [Events & Delegates](#events--delegates)
   - [AFormation Blueprint/Native Functions](#aformation-blueprintnative-functions)
   - [UFormationAgentComponent Blueprint/Native Functions](#uformationagentcomponent-blueprintnative-functions)
+  - [UFormationPathModifier Static Functions](#uformationpathmodifier-static-functions)
 
 
 ## **Quick Start Guide**
