@@ -11,6 +11,7 @@
 #include "HitProxies.h"
 #include "UnrealWidget.h"
 #include "ScopedTransaction.h"
+#include "FormationEditorToolkit.h"
 
 FFormationEditorViewportClient::FFormationEditorViewportClient(UFormationAsset* InAsset,
    FPreviewScene* InPreviewScene) : FEditorViewportClient(nullptr, InPreviewScene), EditedFormation(InAsset)
@@ -37,11 +38,18 @@ FFormationEditorViewportClient::FFormationEditorViewportClient(UFormationAsset* 
         InPreviewScene->AddComponent(OutlinePostProcessComponent, FTransform::Identity);
     }
     
-    if (EditedFormation)
+    /*if (EditedFormation)
     {
         EditedFormation->OnAgentPositionsChanged.AddRaw(
             this, &FFormationEditorViewportClient::RefreshPreviewActors
         );
+    }*/
+
+    if (EditedFormation)
+    {
+        EditedFormation->OnAgentCountChanged.AddRaw(this, &FFormationEditorViewportClient::HandleAgentCountChanged);
+        EditedFormation->OnAgentsDataChanged.AddRaw(this, &FFormationEditorViewportClient::HandleAgentsDataChanged);
+        EditedFormation->OnGroupPresetsChanged.AddRaw(this, &FFormationEditorViewportClient::HandleGroupPresetsChanged);
     }
 
     bShowWidget = true; 
@@ -77,7 +85,9 @@ FFormationEditorViewportClient::~FFormationEditorViewportClient()
 
     if (EditedFormation)
     {
-        EditedFormation->OnAgentPositionsChanged.RemoveAll(this);
+        EditedFormation->OnAgentCountChanged.RemoveAll(this);
+        EditedFormation->OnAgentsDataChanged.RemoveAll(this);
+        EditedFormation->OnGroupPresetsChanged.RemoveAll(this);
     }
 
     if (PostUndoRedoHandle.IsValid())
@@ -140,22 +150,27 @@ void FFormationEditorViewportClient::ForceDestroyPreviewActors()
     UE_LOG(LogTemp, Warning, TEXT("Force destroyed all preview actors and cleared render resources"));
 }
 
+void FFormationEditorViewportClient::SetEditorToolkit(TSharedPtr<FFormationEditorToolkit> InToolkit)
+{
+    EditorToolkit = InToolkit;
+}
+
 void FFormationEditorViewportClient::DrawVirtualLeader(FPrimitiveDrawInterface* PDI)
 {
     if (!PreviewScene || !EditedFormation) return;
 
-    DrawCircle(PDI, FVector(0,0,0), FVector(1, 0, 0), FVector(0, 1, 0), FColor::Blue, 30.f, 32, SDPG_World);
+    DrawCircle(PDI, FVector(0,0,0), FVector(1, 0, 0), FVector(0, 1, 0), FColor::Blue, 30.f, 32, SDPG_World, 3);
 }
 
 void FFormationEditorViewportClient::DrawForwardArrow(FPrimitiveDrawInterface* PDI)
 {
     if (!PreviewScene) return ;
     
-    const FVector Start = FVector(EditedFormation->FormationRadius, 0, 0);
-    const FVector End = FVector(EditedFormation->FormationRadius + 300, 0, 0);
+    const FVector Start = FVector(30, 0, 0);
+    const FVector End = FVector(200, 0, 0);
     const float ArrowSize = 60.0f;
-    const FLinearColor ArrowColor = FColor::Red.ReinterpretAsLinear();
-    const float Thickness = 8.0f;
+    const FLinearColor ArrowColor = FColor::Blue.ReinterpretAsLinear();
+    const float Thickness = 3.0f;
     const uint8 DepthPriority = SDPG_Foreground;
 
     PDI->DrawLine(Start, End, ArrowColor, DepthPriority, Thickness);
@@ -284,8 +299,7 @@ void FFormationEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas
         bInitialized = true;
         SpawnPreviewActors();
     }
-
-    static TArray<FAgentData> LastUnitPositions;
+    /*static TArray<FAgentData> LastUnitPositions;
     
     if (EditedFormation && EditedFormation->AgentDatas != LastUnitPositions)
     {
@@ -297,7 +311,7 @@ void FFormationEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas
     {
         ClearSelection();
         SpawnPreviewActors();
-    }
+    }*/
 
     if (EnumHasAnyFlags(CurrentShowFlags, EFormationShowFlags::PriorityNumbers)) {
         DrawPriorityNumbers(InViewport, Canvas);
@@ -380,28 +394,63 @@ bool FFormationEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAx
     {
         if (GetViewportType() == LVT_Perspective)
         {
-            const bool bShouldSnap = bEnableSnapping || IsSnappingKeyPressed();
-            FVector SnappedDrag = Drag;
-
-            if (bShouldSnap)
+            if (GetWidgetMode() == UE::Widget::WM_Translate)
             {
-                SnappedDrag.X = FMath::GridSnap(SnappedDrag.X, SnapValue);
-                SnappedDrag.Y = FMath::GridSnap(SnappedDrag.Y, SnapValue);
-                SnappedDrag.Z = FMath::GridSnap(SnappedDrag.Z, SnapValue);
-            }
+                const bool bShouldSnap = bEnableSnapping || IsSnappingKeyPressed();
+                FVector SnappedDrag = Drag;
 
-            for (int32 i = 0; i < SelectedActors.Num(); ++i)
-            {
-                if (SelectedActors[i].IsValid() && SelectedIndices.IsValidIndex(i))
+                if (bShouldSnap)
                 {
-                    const int32 DataIndex = SelectedIndices[i];
+                    SnappedDrag.X = FMath::GridSnap(SnappedDrag.X, SnapValue);
+                    SnappedDrag.Y = FMath::GridSnap(SnappedDrag.Y, SnapValue);
+                    SnappedDrag.Z = FMath::GridSnap(SnappedDrag.Z, SnapValue);
+                }
 
-                    if (EditedFormation->AgentDatas.IsValidIndex(DataIndex))
+                for (int32 i = 0; i < SelectedActors.Num(); ++i)
+                {
+                    if (SelectedActors[i].IsValid() && SelectedIndices.IsValidIndex(i))
                     {
-                        const FVector NewLocation = SelectedActors[i]->GetActorLocation() + SnappedDrag;
+                        const int32 DataIndex = SelectedIndices[i];
 
-                        SelectedActors[i]->SetActorLocation(NewLocation);
-                        EditedFormation->AgentDatas[DataIndex].Position = NewLocation;
+                        if (EditedFormation->AgentDatas.IsValidIndex(DataIndex))
+                        {
+                            const FVector NewLocation = SelectedActors[i]->GetActorLocation() + SnappedDrag;
+
+                            SelectedActors[i]->SetActorLocation(NewLocation);
+                            EditedFormation->AgentDatas[DataIndex].Position = NewLocation;
+                        }
+                    }
+                }
+            }
+            else if (GetWidgetMode() == UE::Widget::WM_Rotate)
+            {
+                if (!Rot.IsNearlyZero()) 
+                {
+                    const FVector PivotPoint = GetWidgetLocation();   
+                    const FQuat DeltaRotation = Rot.Quaternion();   
+
+                    for (int32 i = 0; i < SelectedActors.Num(); ++i)
+                    {
+                        if (SelectedActors[i].IsValid() && SelectedIndices.IsValidIndex(i))
+                        {
+                            AActor* Actor = SelectedActors[i].Get();
+                            const int32 DataIndex = SelectedIndices[i];
+
+                            if (EditedFormation->AgentDatas.IsValidIndex(DataIndex))
+                            {
+                                const FQuat OriginalQuat = Actor->GetActorQuat();
+                                const FQuat NewQuat = DeltaRotation * OriginalQuat;
+
+                                const FVector OldLocation = Actor->GetActorLocation();
+                                const FVector VectorFromPivot = OldLocation - PivotPoint;
+                                const FVector RotatedVector = DeltaRotation.RotateVector(VectorFromPivot);
+                                const FVector NewLocation = PivotPoint + RotatedVector;
+
+                                Actor->SetActorLocationAndRotation(NewLocation, NewQuat);
+                                EditedFormation->AgentDatas[DataIndex].Position = NewLocation;
+                                EditedFormation->AgentDatas[DataIndex].Rotation = NewQuat.Rotator();
+                            }
+                        }
                     }
                 }
             }
@@ -437,6 +486,12 @@ bool FFormationEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAx
                     }
                 }
             }
+        }
+
+
+        if (auto Toolkit = EditorToolkit.Pin())
+        {
+            Toolkit->RefreshAgentDetailsView();
         }
 
         return true;
@@ -479,10 +534,7 @@ bool FFormationEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArg
                 }
             }
 
-            ClearSelection();
-            RefreshPreviewActors();
-
-            EditedFormation->OnAgentPositionsChanged.Broadcast();
+            EditedFormation->OnAgentCountChanged.Broadcast();
             return true;
         }
     }
@@ -528,9 +580,10 @@ bool FFormationEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArg
                     NewPastedIndices.Add(NewIndex);
                 }
 
-                EditedFormation->OnAgentPositionsChanged.Broadcast();
+                EditedFormation->OnAgentCountChanged.Broadcast();
 
                 ClearSelection();
+
                 for (const int32 Index : NewPastedIndices)
                 {
                     if (PreviewActors.IsValidIndex(Index) && PreviewActors[Index].IsValid())
@@ -539,7 +592,49 @@ bool FFormationEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArg
                     }
                 }
 
+                //EditedFormation->PostEditChange();
                 return true;
+            }
+        }
+        
+        // Ctrl + D
+        if (EventArgs.Key == EKeys::D && EventArgs.Event == IE_Pressed)
+        {
+            if (SelectedIndices.Num() > 0 && EditedFormation)
+            {
+                const FScopedTransaction Transaction(NSLOCTEXT("FormationEditor", "DuplicateAgentsWithOffset", "Duplicate Formation Agents with Offset"));
+                EditedFormation->Modify();
+
+                TArray<int32> OriginalSelectedIndices = SelectedIndices;
+                TArray<int32> NewDuplicatedIndices;
+
+                for (const int32 Index : OriginalSelectedIndices)
+                {
+                    if (EditedFormation->AgentDatas.IsValidIndex(Index))
+                    {
+                        FAgentData NewAgentData = EditedFormation->AgentDatas[Index];
+
+                        NewAgentData.Position.X += 10.0f;
+                        NewAgentData.Position.Y += 10.0f;
+                        
+                        const int32 NewIndex = EditedFormation->AgentDatas.Add(NewAgentData);
+                        NewDuplicatedIndices.Add(NewIndex);
+                    }
+                }
+
+                EditedFormation->OnAgentCountChanged.Broadcast();
+
+                for (const int32 NewIndex : NewDuplicatedIndices)
+                {
+                    if (PreviewActors.IsValidIndex(NewIndex) && PreviewActors[NewIndex].IsValid())
+                    {
+                        SelectActor(PreviewActors[NewIndex].Get(), true);
+                    }
+                }
+
+                Invalidate();
+
+                return true; 
             }
         }
     }
@@ -577,7 +672,7 @@ bool FFormationEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArg
             if (bBoxSelecting)
             {
                 bBoxSelecting = false;
-                ClearSelection();
+                ClearSelection(false);
 
                 FBox2D SelectionBox(FVector2D(FMath::Min(BoxSelectStart.X, BoxSelectEnd.X), FMath::Min(BoxSelectStart.Y, BoxSelectEnd.Y)),
                                     FVector2D(FMath::Max(BoxSelectStart.X, BoxSelectEnd.X), FMath::Max(BoxSelectStart.Y, BoxSelectEnd.Y)));
@@ -608,15 +703,7 @@ bool FFormationEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArg
                     }
                 }
 
-                //GEditor->SelectNone(false, false);
-                for (const auto& ActorPtr : SelectedActors)
-                {
-                    if (ActorPtr.IsValid())
-                    {
-                        //GEditor->SelectActor(ActorPtr.Get(), true, false);
-                    }
-                }
-                //GEditor->NoteSelectionChange();
+                NotifySelectionChanged();
                 
                 Invalidate();
                 return true;
@@ -631,14 +718,50 @@ void FFormationEditorViewportClient::TrackingStarted(const struct FInputEventSta
     bool bIsDraggingWidget, bool bNudge)
 {
     AccumulatedDrag = FVector::ZeroVector;
+    bIsDuplicating = false;
 
-    if (bIsDraggingWidget && SelectedActors.Num() > 0)
+    if (bIsDraggingWidget && SelectedActors.Num() > 0 && EditedFormation)
     {
         bIsDragging = true;
         
-        GEditor->BeginTransaction(NSLOCTEXT("FormationEditor", "MoveAgents", "Move Formation Agents"));
+        const bool bIsAltDown = InInputState.IsAltButtonPressed();
+        
+        if (bIsAltDown)
+        {
+            bIsDuplicating = true;
+            
+            GEditor->BeginTransaction(NSLOCTEXT("FormationEditor", "DuplicateAgents", "Duplicate Formation Agents"));
+            EditedFormation->Modify();
 
-        EditedFormation->Modify();
+            TArray<int32> OriginalSelectedIndices = SelectedIndices;
+            TArray<int32> NewPastedIndices;
+            
+            for (const int32 Index : OriginalSelectedIndices)
+            {
+                if (EditedFormation->AgentDatas.IsValidIndex(Index))
+                {
+                    FAgentData NewAgentData = EditedFormation->AgentDatas[Index];
+                    const int32 NewIndex = EditedFormation->AgentDatas.Add(NewAgentData);
+                    NewPastedIndices.Add(NewIndex);
+                }
+            }
+
+            EditedFormation->OnAgentCountChanged.Broadcast();
+            
+            for (const int32 NewIndex : NewPastedIndices)
+            {
+                if (PreviewActors.IsValidIndex(NewIndex) && PreviewActors[NewIndex].IsValid())
+                {
+                    SelectActor(PreviewActors[NewIndex].Get(), true);
+                }
+            }
+            
+        }
+        else
+        {
+            GEditor->BeginTransaction(NSLOCTEXT("FormationEditor", "TransformAgents", "Transform Formation Agents"));
+            EditedFormation->Modify();
+        }
     }
     
     FEditorViewportClient::TrackingStarted(InInputState, bIsDraggingWidget, bNudge);
@@ -648,11 +771,19 @@ void FFormationEditorViewportClient::TrackingStopped()
 {
     if (bIsDragging)
     {
+        //GEditor->EndTransaction();
+        //EditedFormation->PostEditChange();
+
+        if (EditedFormation && SelectedIndices.Num() > 0)
+        {
+			EditedFormation->OnAgentsDataChanged.Broadcast(SelectedIndices);
+        }
+
         GEditor->EndTransaction();
-        EditedFormation->PostEditChange();
     }
     
     bIsDragging = false;
+    bIsDuplicating = false;
 
     FEditorViewportClient::TrackingStopped();
 }
@@ -702,20 +833,28 @@ void FFormationEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* H
     FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
 }
 
-void FFormationEditorViewportClient::FFormationEditorViewportClient::RefreshPreviewActors()
+TArray<int32> FFormationEditorViewportClient::FFormationEditorViewportClient::RefreshPreviewActors()
 {
     TArray<int32> OldSelectedIndices = SelectedIndices;
-    ClearSelection();
+
+    ClearSelection(false);
 
     SpawnPreviewActors();
 
-    for (int32 OldIndex : OldSelectedIndices)
+    for (const int32 OldIndex : OldSelectedIndices)
     {
         if (PreviewActors.IsValidIndex(OldIndex) && PreviewActors[OldIndex].IsValid())
         {
-            SelectActor(PreviewActors[OldIndex].Get(), true);
+            SelectedActors.Add(PreviewActors[OldIndex]);
+            SelectedIndices.Add(OldIndex);
+            SetHighlight(PreviewActors[OldIndex].Get(), true);
         }
     }
+
+
+    Invalidate();
+
+    return OldSelectedIndices;
 }
 
 void FFormationEditorViewportClient::SelectActor(AActor* NewActor, bool bToggle)
@@ -766,6 +905,7 @@ void FFormationEditorViewportClient::SelectActor(AActor* NewActor, bool bToggle)
         } 
     }
 
+    NotifySelectionChanged();
     Invalidate();
 }
 
@@ -792,7 +932,7 @@ void FFormationEditorViewportClient::DeselectActor(AActor* ActorToDeselect)
     }
 }
 
-void FFormationEditorViewportClient::ClearSelection()
+void FFormationEditorViewportClient::ClearSelection(bool bNotify)
 {
     for (const auto& ActorPtr : SelectedActors)
     {
@@ -804,6 +944,11 @@ void FFormationEditorViewportClient::ClearSelection()
 
     SelectedActors.Empty();
     SelectedIndices.Empty();
+    if(bNotify)
+    {
+        NotifySelectionChanged();
+    }
+
     Invalidate();
 }
 
@@ -880,6 +1025,7 @@ void FFormationEditorViewportClient::SpawnPreviewActors()
         SpawnParams.bNoFail = true;
         SpawnParams.ObjectFlags = RF_Transient | RF_DuplicateTransient;
         SpawnParams.bDeferConstruction = false;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
         AActor* NewActor = World->SpawnActor<AActor>(
             SpawnClass,
@@ -975,7 +1121,6 @@ void FFormationEditorViewportClient::DrawFormationRadius(FPrimitiveDrawInterface
 {
     if (!EditedFormation || !PreviewScene) return;
     
-    DrawCircle(PDI, FVector::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Red, EditedFormation->FormationRadius, 64, SDPG_Foreground, 4.0f);
     DrawCircle(PDI, FVector::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Red, EditedFormation->FormationMinRadius, 64, SDPG_Foreground, 4.0f);
 }
 
@@ -1019,6 +1164,94 @@ void FFormationEditorViewportClient::SetHighlight(AActor* Actor, bool bEnable)
             Component->SetCustomDepthStencilValue(bEnable ? OutlineStencilValue : 0);
         }
     }
+}
+
+void FFormationEditorViewportClient::NotifySelectionChanged()
+{
+    if (auto Toolkit = EditorToolkit.Pin())
+    {
+        TArray<int32> CurrentSelectedIndices = SelectedIndices;
+        Toolkit->UpdateAgentDetailsView(CurrentSelectedIndices);
+
+        if (EditedFormation && EditedFormation->bIsUpdatingFromDataChange)
+        {
+            EditedFormation->bIsUpdatingFromDataChange = false;
+
+            GEditor->GetTimerManager()->SetTimerForNextTick([Toolkit, CurrentSelectedIndices]()
+                {
+                    if (Toolkit.IsValid())
+                    {
+                        Toolkit->UpdateAgentDetailsView(CurrentSelectedIndices);
+                    }
+                });
+        }
+    }
+}
+
+void FFormationEditorViewportClient::HandleAgentCountChanged()
+{
+    ClearSelection(false);
+    SpawnPreviewActors();
+    Invalidate();
+}
+
+void FFormationEditorViewportClient::HandleAgentsDataChanged(const TArray<int32>& AgentIndices)
+{
+    bool bNeedsRebuild = false;
+    bool bGroupNameChanged = false;
+
+    for (const int32 Index : AgentIndices)
+    {
+        if (!EditedFormation || !EditedFormation->AgentDatas.IsValidIndex(Index) || !PreviewActors.IsValidIndex(Index) || !PreviewActors[Index].IsValid())
+        {
+            bNeedsRebuild = true;
+            break;
+        }
+
+        const FAgentData& NewData = EditedFormation->AgentDatas[Index];
+        AActor* CurrentActor = PreviewActors[Index].Get();
+
+        TSubclassOf<APawn> TargetPawnClass = EditedFormation->GetUnitPresetForGroup(NewData.GroupName);
+        TSubclassOf<AActor> TargetSpawnClass;
+        if (TargetPawnClass)
+        {
+            TargetSpawnClass = TargetPawnClass;
+        }
+        else
+        {
+            TargetSpawnClass = AStaticMeshActor::StaticClass();
+        }
+
+        if (CurrentActor->GetClass() != TargetSpawnClass)
+        {
+            bNeedsRebuild = true;
+            bGroupNameChanged = true;
+            break;
+        }
+        else
+        {
+            CurrentActor->SetActorLocationAndRotation(NewData.Position, NewData.Rotation);
+        }
+    }
+
+    if (bNeedsRebuild)
+    {
+        TArray<int32> RestoredIndices = RefreshPreviewActors();
+
+        if (auto Toolkit = EditorToolkit.Pin())
+        {
+            Toolkit->UpdateAgentDetailsView(RestoredIndices);
+        }
+    }
+    else
+    {
+        Invalidate();
+    }
+}
+
+void FFormationEditorViewportClient::HandleGroupPresetsChanged()
+{
+    RefreshPreviewActors();
 }
 
 void FFormationEditorViewportClient::SetTopView()

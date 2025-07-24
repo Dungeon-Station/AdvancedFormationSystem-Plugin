@@ -8,7 +8,13 @@
 #include "Engine/DataAsset.h"
 #include "Delegates/Delegate.h"
 #include "FormationAsset.generated.h"
-DECLARE_MULTICAST_DELEGATE(OnAgentDatasChanged);
+//DECLARE_MULTICAST_DELEGATE(OnAgentDatasChanged);
+
+DECLARE_MULTICAST_DELEGATE(FOnAgentCountChanged);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAgentsDataChanged, const TArray<int32>& /*AgentIndex*/);
+
+DECLARE_MULTICAST_DELEGATE(FOnGroupPresetsChanged);
 
 USTRUCT(BlueprintType)
 struct FAgentData
@@ -32,7 +38,7 @@ struct FAgentData
 
 	bool operator==(const FAgentData& Other) const
 	{
-		return (Position == Other.Position) && (Rotation == Other.Rotation) && (Priority == Other.Priority);
+		return (Position == Other.Position) && (Rotation == Other.Rotation) && (Priority == Other.Priority) && (GroupName == Other.GroupName);
 	}
 };
 
@@ -57,13 +63,15 @@ class AFS_API UFormationAsset : public UDataAsset
 
 public:
     UFormationAsset();
+
+	void ConvertToFormationAgentDatas();
     
 	/** The display name for identifying this formation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Formation", meta=(DisplayName="Formation Name", ToolTip="The display name for identifying this formation."))
 	FString FormationName = "Default Formation";
 
 	/** The overall radius of the formation, used for collision checks. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation", meta=(ToolTip="The overall radius of the formation, used for collision checks."))
+	UPROPERTY(BlueprintReadWrite, Category = "Formation", meta=(ToolTip="The overall radius of the formation, used for collision checks."))
 	float FormationRadius = 1000.0f;
 
 	/** The minimum radius required to maintain the formation. */
@@ -76,6 +84,9 @@ public:
     /** The list of all agent slots that make up this formation. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Agents", meta=(DisplayName="Agent Data", ToolTip="The list of all agent slots that make up this formation."))
     TArray<FAgentData> AgentDatas;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agents", meta = (DisplayName = "Formation Agent Data", ToolTip = "The list of all agent slots that make up this formation."))
+	TArray<FAgentData> FormationAgentDatas;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Formation", meta=(DisplayName="Group Unit Presets"))
 	TArray<FGroupUnitPreset> GroupUnitPresets;
@@ -87,17 +98,24 @@ public:
 	TArray<FString> GetGroupNameOptions() const;
 
 public:
-	OnAgentDatasChanged OnAgentPositionsChanged;
+	FOnAgentCountChanged OnAgentCountChanged;
+	FOnAgentsDataChanged OnAgentsDataChanged;
+	FOnGroupPresetsChanged OnGroupPresetsChanged;
 	
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif
 	
 	bool bIsUpdatingFromDataChange = false;
 private:
 #if WITH_EDITORONLY_DATA
 	TArray<FGroupUnitPreset> CachedGroupUnitPresets;
+
+	TArray<FAgentData> CachedAgentDatas;
 #endif
+
+	TSet<int32> PendingChangedAgentIndices;
 };
 

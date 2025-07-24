@@ -3,10 +3,41 @@
 */
 
 #include "FormationAsset.h"
+#include "FormationWelzl.h"
+
 
 UFormationAsset::UFormationAsset()
 {
     GroupUnitPresets.Add({FName("Default"), nullptr}); 
+}
+
+void UFormationAsset::ConvertToFormationAgentDatas()
+{
+	FormationAgentDatas.Empty();
+
+    TArray<FVector2D> AgentPositions2D;
+    TArray<FVector> AgentPositions;
+    float MaxRadius = 0.0f;
+
+    for (FAgentData AgentData : AgentDatas)
+    {
+        FVector Position = AgentData.Position;
+        AgentPositions2D.Add(FVector2D(Position.X, Position.Y));
+        AgentPositions.Add(Position);
+    }
+
+    FCircle Circle = FFormationWelzl::GetMinimumEnclosingCircle(AgentPositions2D);
+    FSphere Sphere = FFormationWelzl::GetMinimumEnclosingSphere(AgentPositions);
+
+    for (FAgentData Agents : AgentDatas)
+    {
+        FAgentData NewAgentData;
+		NewAgentData.GroupName = Agents.GroupName;
+		NewAgentData.Priority = Agents.Priority;
+		NewAgentData.Position = Agents.Position - Sphere.Center;
+		NewAgentData.Rotation = Agents.Rotation;
+		FormationAgentDatas.Add(NewAgentData);
+    }
 }
 
 TSubclassOf<APawn> UFormationAsset::GetUnitPresetForGroup(FName GroupName) const
@@ -42,12 +73,20 @@ TArray<FString> UFormationAsset::GetGroupNameOptions() const
 void UFormationAsset::PreEditChange(FProperty* PropertyAboutToChange)
 {
     Super::PreEditChange(PropertyAboutToChange);
+
     if (PropertyAboutToChange)
     {
-        const FName GroupUnitPresetsPropName = GET_MEMBER_NAME_CHECKED(UFormationAsset, GroupUnitPresets);
-        FProperty* Prop = GetClass()->FindPropertyByName(GroupUnitPresetsPropName);
-        
-        CachedGroupUnitPresets = GroupUnitPresets;
+        const FName PropertyName = PropertyAboutToChange->GetFName();
+
+        if (PropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, GroupUnitPresets))
+        {
+            CachedGroupUnitPresets = GroupUnitPresets;
+        }
+        else if (PropertyName == GET_MEMBER_NAME_CHECKED(UFormationAsset, AgentDatas) ||
+            PropertyAboutToChange->GetOwnerStruct() == FAgentData::StaticStruct())
+        {
+            CachedAgentDatas = AgentDatas;
+        }
     }
 }
 
@@ -110,6 +149,7 @@ void UFormationAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
             }
         }
 
+        OnGroupPresetsChanged.Broadcast();
         CachedGroupUnitPresets.Empty();
     }
     
@@ -123,8 +163,44 @@ void UFormationAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
             {
                 AgentDatas[NewIndex].Priority = AgentDatas.Num() - 1;
             }
+
+            OnAgentCountChanged.Broadcast();
         }
-        OnAgentPositionsChanged.Broadcast();
+        else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+        {
+            if (CachedAgentDatas.Num() == AgentDatas.Num())
+            {
+                TArray<int32> ChangedIndices;
+                for (int32 i = 0; i < AgentDatas.Num(); ++i)
+                {
+                    if (!(AgentDatas[i] == CachedAgentDatas[i]))
+                    {
+                        ChangedIndices.Add(i);
+                    }
+                }
+
+                if (ChangedIndices.Num() > 0)
+                {
+                    OnAgentsDataChanged.Broadcast(ChangedIndices);
+                }
+            }
+            else 
+            {
+                OnAgentCountChanged.Broadcast();
+            }
+        }
+
+        CachedAgentDatas.Empty();
     }
+}
+void UFormationAsset::PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent)
+{
+    Super::PostEditChangeChainProperty(ChainEvent);
+    TArray<int32> AllIndices;
+    for (int32 i = 0; i < AgentDatas.Num(); ++i)
+    {
+        AllIndices.Add(i);
+    }
+    OnAgentsDataChanged.Broadcast(AllIndices);
 }
 #endif

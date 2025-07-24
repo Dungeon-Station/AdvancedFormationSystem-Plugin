@@ -157,19 +157,42 @@ void UFormationAgentComponent::UpdateAgent(const FVector& Location)
                 // Character->GetCharacterMovement()->bOrientRotationToMovement = true;
                 // Character->AddMovementInput(DesiredDirection, 1.0f);
 
-                if (FormationOwner->GetFormationAsset()->FormationRadius < FormationOwner->GetRefFormationAsset()->FormationRadius)
+                if (FormationOwner->bFixedRotation)
                 {
                     Character->GetCharacterMovement()->bOrientRotationToMovement = false;
                     Character->AddMovementInput(DesiredDirection, 1.0f);
-                    Character->SetActorRotation(FormationOwner->GetActorRotation());
+
+                    const FRotator TargetRotation = FormationOwner->GetActorRotation() + AgentData->Rotation;
+
+                    const FRotator CurrentRotation = Character->GetActorRotation();
+                    if (!CurrentRotation.Equals(TargetRotation, RotationTolerance))
+                    {
+                        const float RotationInterpSpeed = 5.0f;
+
+                        const FRotator NewRotation = FMath::RInterpTo(
+                            CurrentRotation,
+                            TargetRotation,
+                            GetWorld()->GetDeltaSeconds(),
+                            RotationInterpSpeed
+                        );
+
+                        Character->SetActorRotation(NewRotation);
+                    }
                 }
                 else
                 {
-                    // During normal move, let movement component handle rotation.
-                    Character->GetCharacterMovement()->bOrientRotationToMovement = true;
-                    Character->AddMovementInput(DesiredDirection, 1.0f);
+                    if (FormationOwner->GetFormationAsset()->FormationRadius < FormationOwner->GetRefFormationAsset()->FormationRadius)
+                    {
+                        Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+                        Character->AddMovementInput(DesiredDirection, 1.0f);
+                        Character->SetActorRotation(FormationOwner->GetActorRotation());
+                    }
+                    else
+                    {
+                        Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+                        Character->AddMovementInput(DesiredDirection, 1.0f);
+                    }
                 }
-                
             }
         }
     }

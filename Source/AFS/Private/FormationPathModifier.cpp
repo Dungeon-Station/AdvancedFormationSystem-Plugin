@@ -89,7 +89,7 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
             float AngleRatio = AngleRad / (PI / 2);
             float DynamicTraceRadius = TraceRadius * (1.0f + AngleRatio * 0.5f);
 
-            FVector AdjustedStart = CurrPoint + Dir * 30.0f;
+            FVector AdjustedStart = CurrPoint + Tangent * 10.0f + Dir * 30.0f;
             FVector TraceEnd = AdjustedStart + Dir * (TraceRadius);
             FVector HitLocation;
 
@@ -127,7 +127,8 @@ TArray<FVector> UFormationPathModifier::ApplyOffset(
 
         if (!bHit)
         {
-            NewPath[i] = CurrPoint + Tangent * OffsetDistance;
+            BestOffsetPoint = CurrPoint + Tangent * OffsetDistance;
+            NewPath[i] = BestOffsetPoint;
         }
         else
         {

@@ -29,10 +29,11 @@ DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_UpdateNormalAgent"), S
 DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_MoveStrayAgent"), STAT_UpdateAgentsLocation_MoveStrayAgent, STATGROUP_Formation);
 DECLARE_CYCLE_STAT(TEXT("Formation - UpdateAgentsLocation_IdleLoop"), STAT_UpdateAgentsLocation_IdleLoop, STATGROUP_Formation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFormationMoveCompleted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFormationMoveCompleted, bool, bSuccess);
 
 class UFloatingPawnMovement;
 class USphereComponent;
+class USplineComponent;
 class UFormationAgentComponent;
 class UFormationAsset;
 class AAIController;
@@ -86,6 +87,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	void FormationMoveTo(const FVector& Location, const FRotator& Rotation);
+
+	/**
+	 * Initiates movement of the formation by manual spline.
+	 * @param InSpline USplineComponent reference of manual spline.
+	 * @param StepDistance Path point step distance that extract from spline.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void FormationMoveAlongSpline(USplineComponent* InSpline, float StepDistance = 100.0f);
+
 	/**
 	 * Registers a new agent component to be managed by this formation.
 	 */
@@ -98,15 +108,34 @@ public:
 	void RearrangeFormation();
 
 	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void RearrangeFormationNoMove();
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void StopFormationMove();
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
 	void FallOutFormation();
 
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	void FallInFormation();
 
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void SetRearrangementMode(EFormationRearrangeMode NewMode);
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void SetFixedRotationMode(bool bInFixedRotation);
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void ChangeFormationAsset(UFormationAsset* NewFormation);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Move")
+    void MoveCompleted(bool bSuccess);
+	
 	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "MoveCompleted"))
 	FFormationMoveCompleted OnFormationMoveCompleted;
 
-    
+	UPROPERTY(EditAnywhere, Category = "Formation", meta = (ToolTip = "Determines whether each agent will have a fixed rotation value in formation asset."))
+	bool bFixedRotation = false;
 private:
 	/**
 	 * Sets up movement state when starting a new move command.
@@ -165,6 +194,7 @@ private:
 
 	bool IsLocationOnNavMesh();
 
+	void AdjustToGround();
 public:
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     float GetFormationSpeed() const { return FormationSpeed; }
@@ -178,6 +208,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     float GetAgentAcceleration() const { return AgentAcceleration; }
 	
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	bool GetFixedRotationMode() const { return bFixedRotation; }
+
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     TArray<UFormationAgentComponent*> GetFormationAgentComponents() const { return FormationAgentComponents; }
 	
@@ -195,7 +228,7 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Formation")
     EFormationPhase GetFormationPhase() const { return Phase; }
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Formation")
 	bool IsBroken() { return bBroken; };
 	
@@ -203,9 +236,20 @@ public:
 	void ResizeRefFormationAsset();
 	
 	USphereComponent* GetSphereComponent() const { return SphereComponent; }
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	void SetRegistered(bool bInRegistered) { bRegistered = bInRegistered; }
+
+	UFUNCTION(BlueprintCallable, Category = "Formation")
+	bool IsRegistered() const { return bRegistered; }
+
 private:
     /** Current operational phase of the formation. */
     EFormationPhase Phase = EFormationPhase::Idle;
+
+	/** Raw path points created by navigation system. */
+	UPROPERTY()
+	TArray<FVector> RawPathPoints;
 
 	/** Computed path points for the formation to follow. */
 	UPROPERTY()
@@ -316,7 +360,9 @@ private:
 	float ScaleInterpolationSpeed = 2.0f;
 
 	FVector LastFormationOnNavMeshLocation;
+	bool bRegistered = false;
 
+	FVector FormationCenter;
 	/* Debug Session */
 public:
 	/** Enable or disable debug drawing of formation behavior. */
@@ -325,7 +371,8 @@ public:
 
 
 private:
-	
+	void DrawDebugData();
+
 	void DrawDebugPath(const TArray<FVector>& Path);
 	
 	/** @return Flag to enable debug drawing. */

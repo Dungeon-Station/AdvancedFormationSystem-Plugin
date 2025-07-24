@@ -19,6 +19,7 @@
 #include "FormationWelzl.h"
 #include "UObject/Package.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SplineComponent.h"
 
 AFormation::AFormation()
 {
@@ -61,10 +62,14 @@ void AFormation::BeginPlay()
 {
 	Super::BeginPlay();
 
+	OnFormationMoveCompleted.AddDynamic(this, &AFormation::MoveCompleted);
+
 	if (RefFormationAsset)
 	{
 		SphereComponent->SetSphereRadius(RefFormationAsset->FormationRadius);
 		FormationAsset = DuplicateObject<UFormationAsset>(RefFormationAsset, GetTransientPackage());
+		RefFormationAsset->ConvertToFormationAgentDatas();
+		FormationAsset->ConvertToFormationAgentDatas();
 	}
 	else 
 	{
@@ -82,25 +87,7 @@ void AFormation::BeginPlay()
 			}
 		}
 	}
-
-	if (FormationAsset)
-	{
-		for (int32 i = 0; i < FormationAsset->AgentDatas.Num(); i++)
-		{
-			if (FormationAgentComponents.Num() <= i)
-			{
-				break;
-			}
-
-			if(FormationAgentComponents[i] == nullptr || FormationAgentComponents[i]->GetOwner() == nullptr)
-			{
-				continue;
-			}
-
-			FormationAgentComponents[i]->GetOwner()->SetActorLocation(FormationAsset->AgentDatas[i].Position + GetActorLocation());
-			FormationAgentComponents[i]->GetOwner()->SetActorRotation(FormationAsset->AgentDatas[i].Rotation + GetActorRotation());
-		}
-	}
+	AdjustToGround();
 }
 
 void AFormation::Tick(float DeltaTime)
@@ -109,9 +96,21 @@ void AFormation::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
-	if(RefFormationAsset == nullptr || FormationAsset == nullptr)
+	if (RefFormationAsset == nullptr || FormationAsset == nullptr)
 	{
 		return;
+	}
+	//AdjustToGround();
+
+	if (FormationAgentComponents.Num() > 0 && !bRegistered)
+	{
+		//RearrangeFormationNoMove();
+		bRegistered = true;
+	}
+
+	if (SphereComponent)
+	{
+		FormationCenter = SphereComponent->GetComponentLocation();
 	}
 
 	ExtendSphereComponent->SetSphereRadius(SphereComponent->GetUnscaledSphereRadius() * 1.1f);
@@ -148,7 +147,7 @@ void AFormation::Tick(float DeltaTime)
 	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DrawDebugPath);
-		DrawDebugPath(PathPoints);
+		DrawDebugData();
 	}
 
 	{
@@ -219,6 +218,95 @@ void AFormation::FormationMoveTo(const FVector& Location, const FRotator& Rotati
 	TargetLocation = Location;
 	TargetRotation = Rotation;
 	bIsFormationMoveStart = true;
+
+	const FVector CurrentLocation = GetActorLocation();
+
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys) return;
+
+	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(), CurrentLocation, TargetLocation);
+	if (!NavPath || NavPath->PathPoints.Num() == 0)
+	{
+		OnFormationMoveCompleted.Broadcast(false);
+		Phase = EFormationPhase::Idle;
+		return;
+	}
+
+	CurrentPathIndex = 0;
+	RawPathPoints = NavPath->PathPoints;
+	PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
+}
+
+void AFormation::FormationMoveAlongSpline(USplineComponent* InSpline, float StepDistance)
+{
+	// Invalid Spline case
+	if (!InSpline|| InSpline->GetNumberOfSplinePoints() < 2)
+	{
+		OnFormationMoveCompleted.Broadcast(false);
+		Phase = EFormationPhase::Idle;
+		return;
+	}
+
+	PathPoints.Empty();
+
+	// Check if spline is Linear type for optimization
+	bool bIsLinearSpline = true;
+	const int32 NumSplinePoints = InSpline->GetNumberOfSplinePoints();
+
+	// Check if all spline segments are linear
+	for (int32 i = 0; i < NumSplinePoints - 1; i++)
+	{
+		if (InSpline->GetSplinePointType(i) != ESplinePointType::Linear)
+		{
+			bIsLinearSpline = false;
+			break;
+		}
+	}
+
+	if (bIsLinearSpline)
+	{
+		// Linear spline: Just add all spline points without subdivision
+		for (int32 i = 0; i < NumSplinePoints; i++)
+		{
+			const FVector Point = InSpline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World);
+			PathPoints.Add(Point);
+		}
+
+		if (InSpline->IsClosedLoop())
+		{
+			const FVector FirstPoint = InSpline->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::World);
+			PathPoints.Add(FirstPoint);
+
+			TargetLocation = PathPoints.Last();
+			TargetRotation = InSpline->GetRotationAtSplinePoint(0, ESplineCoordinateSpace::World);
+		}
+		else 
+		{
+			TargetLocation = PathPoints.Last();
+			TargetRotation = InSpline->GetRotationAtSplinePoint(NumSplinePoints - 1, ESplineCoordinateSpace::World);
+		}
+	}
+	else
+	{
+		// Curved spline: Use original subdivision logic
+		const float SplineLength = InSpline->GetSplineLength();
+
+		for (float Distance = 0.f; Distance < SplineLength; Distance += StepDistance)
+		{
+			const FVector Point = InSpline->GetLocationAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
+			PathPoints.Add(Point);
+		}
+
+		// Ensure the last point is included
+		PathPoints.Add(InSpline->GetLocationAtSplinePoint(NumSplinePoints - 1, ESplineCoordinateSpace::World));
+
+		TargetLocation = PathPoints.Last();
+		TargetRotation = InSpline->GetRotationAtDistanceAlongSpline(SplineLength, ESplineCoordinateSpace::World);
+	}
+
+	PrevCrashAngle = 0.0f;
+	bIsFormationMoveStart = true;
+	CurrentPathIndex = 0;
 }
 
 void AFormation::RegisterAgent(UFormationAgentComponent* AgentComponent)
@@ -232,12 +320,12 @@ void AFormation::RearrangeFormation()
 	
 	if (UnitNum == 0) return;
 
-	TArray<FAgentData> AssetAgentData = FormationAsset->AgentDatas;
+	TArray<FAgentData> AssetAgentData = FormationAsset->FormationAgentDatas;
 	TArray<TArray<FAgentData>> AgentDatasByGroupName;
 
 	AgentDatasByGroupName.SetNum(FormationAsset->GroupUnitPresets.Num());
 
-	for(const FAgentData& AgentData : FormationAsset->AgentDatas)
+	for(const FAgentData& AgentData : FormationAsset->FormationAgentDatas)
 	{
 		int32 GroupIndex = FormationAsset->GetGroupNameOptions().IndexOfByKey(AgentData.GroupName);
 		if (GroupIndex > -1)
@@ -264,7 +352,7 @@ void AFormation::RearrangeFormation()
 		TArray<UFormationAgentComponent*> FormationAgentComponentsInGroup;
 		for(UFormationAgentComponent* FormationAgentComponent : FormationAgentComponents)
 		{
-			if (FormationAgentComponent->GetGroupName() == GroupData[0].GroupName)
+			if (FormationAgentComponent && FormationAgentComponent->GetGroupName() == GroupData[0].GroupName)
 			{
 				FormationAgentComponentsInGroup.Add(FormationAgentComponent);
 			}
@@ -307,7 +395,7 @@ void AFormation::RearrangeFormation()
 				}
 
 				const FVector UnitLocation = Unit->GetActorLocation();
-				const FVector SlotLocation = GetActorRotation().RotateVector(GroupData[j].Position) + GetActorLocation();
+				const FVector SlotLocation = GetActorRotation().RotateVector(GroupData[j].Position) + FormationCenter;
 
 				float Cost = FVector::Dist(UnitLocation, SlotLocation);
 				CostMatrix[i].Add(Cost);
@@ -321,13 +409,8 @@ void AFormation::RearrangeFormation()
 		FFormationHungarian::Solve(CostMatrix, UnitToSlot, SlotToUnit);
 
 		// Move units to their new positions based on the Hungarian algorithm results
-		for (int32 i = 0; i < GroupData.Num(); ++i)
+		for (int32 i = 0; i < FormationAgentComponentsInGroup.Num(); ++i)
 		{
-			if(FormationAgentComponentsInGroup.Num() <= i)
-			{
-				continue; // No agent assigned to this slot
-			}
-
 			ACharacter* Unit = Cast<ACharacter>(FormationAgentComponentsInGroup[i]->GetOwner());
 			ensure(Unit);
 
@@ -338,7 +421,7 @@ void AFormation::RearrangeFormation()
 
 			FormationAgentComponentsInGroup[i]->SetAgentData(AgentData);
 			FormationAgentComponentsInGroup[i]->SetRefAgentData(AgentData);
-			FVector Destination = GetActorRotation().RotateVector(GroupData[UnitToSlot[i]].Position) + GetActorLocation();
+			FVector Destination = GetActorRotation().RotateVector(GroupData[UnitToSlot[i]].Position) + FormationCenter;
 
 			AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
 			if (UnitAIController)
@@ -367,6 +450,153 @@ void AFormation::RearrangeFormation()
 
 }
 
+void AFormation::RearrangeFormationNoMove()
+{
+	int32 UnitNum = FormationAgentComponents.Num();
+
+	if (UnitNum == 0) return;
+
+	TArray<FAgentData> AssetAgentData = FormationAsset->FormationAgentDatas;
+	TArray<TArray<FAgentData>> AgentDatasByGroupName;
+
+	AgentDatasByGroupName.SetNum(FormationAsset->GroupUnitPresets.Num());
+
+	for (const FAgentData& AgentData : FormationAsset->FormationAgentDatas)
+	{
+		int32 GroupIndex = FormationAsset->GetGroupNameOptions().IndexOfByKey(AgentData.GroupName);
+		if (GroupIndex > -1)
+		{
+			AgentDatasByGroupName[GroupIndex].Add(AgentData);
+		}
+		else
+		{
+			AgentDatasByGroupName[0].Add(AgentData);
+		}
+	}
+
+	for (TArray<FAgentData>& GroupData : AgentDatasByGroupName)
+	{
+		if (GroupData.Num() == 0)
+		{
+			continue;
+		}
+
+		GroupData.Sort([](const FAgentData& A, const FAgentData& B) {
+			return A.Priority < B.Priority;
+			});
+
+		TArray<UFormationAgentComponent*> FormationAgentComponentsInGroup;
+		for (UFormationAgentComponent* FormationAgentComponent : FormationAgentComponents)
+		{
+			if (FormationAgentComponent && FormationAgentComponent->GetGroupName() == GroupData[0].GroupName)
+			{
+				FormationAgentComponentsInGroup.Add(FormationAgentComponent);
+			}
+		}
+
+		if (FormationAgentComponentsInGroup.Num() == 0)
+		{
+			continue; // No agents in this group
+		}
+
+		if (FormationAgentComponentsInGroup.Num() > GroupData.Num())
+		{
+			int32 Difference = FormationAgentComponentsInGroup.Num() - GroupData.Num();
+			// Remove excess agents from the group
+			for (int32 i = 0; i < Difference; ++i)
+			{
+				FormationAgentComponentsInGroup.Pop();
+			}
+		}
+
+		// Create a cost matrix for the Hungarian algorithm
+		TArray<TArray<float>> CostMatrix;
+		TArray<int32> UnitToSlot;
+		TArray<int32> SlotToUnit;
+
+		CostMatrix.SetNum(FormationAgentComponentsInGroup.Num());
+		for (int32 i = 0; i < FormationAgentComponentsInGroup.Num(); ++i)
+		{
+			for (int32 j = 0; j < FormationAgentComponentsInGroup.Num(); ++j)
+			{
+				if (GroupData.Num() <= j)
+				{
+					break; // No more agents in this group
+				}
+
+				ACharacter* Unit = Cast<ACharacter>(FormationAgentComponentsInGroup[i]->GetOwner());
+				if (!Unit)
+				{
+					continue;
+				}
+
+				const FVector UnitLocation = Unit->GetActorLocation();
+				const FVector SlotLocation = GetActorRotation().RotateVector(GroupData[j].Position) + FormationCenter;
+
+				float Cost = FVector::Dist(UnitLocation, SlotLocation);
+				CostMatrix[i].Add(Cost);
+			}
+		}
+
+		UnitToSlot.Init(-1, FormationAgentComponentsInGroup.Num());
+		SlotToUnit.Init(-1, FormationAgentComponentsInGroup.Num());
+
+		// Solve the assignment problem using the Hungarian algorithm
+		FFormationHungarian::Solve(CostMatrix, UnitToSlot, SlotToUnit);
+
+		// Move units to their new positions based on the Hungarian algorithm results
+		for (int32 i = 0; i < GroupData.Num(); ++i)
+		{
+			if (FormationAgentComponentsInGroup.Num() <= i)
+			{
+				continue; // No agent assigned to this slot
+			}
+
+			ACharacter* Unit = Cast<ACharacter>(FormationAgentComponentsInGroup[i]->GetOwner());
+			ensure(Unit);
+
+			FAgentData* AgentData = new FAgentData();
+			AgentData->Position = GroupData[UnitToSlot[i]].Position;
+			AgentData->Rotation = GroupData[UnitToSlot[i]].Rotation;
+			AgentData->Priority = GroupData[UnitToSlot[i]].Priority;
+
+			FormationAgentComponentsInGroup[i]->SetAgentData(AgentData);
+			FormationAgentComponentsInGroup[i]->SetRefAgentData(AgentData);
+			FVector Destination = GetActorRotation().RotateVector(GroupData[UnitToSlot[i]].Position) + FormationCenter;
+
+			Unit->SetActorLocation(Destination);
+			Unit->SetActorRotation(GroupData[UnitToSlot[i]].Rotation + GetActorRotation());
+
+			// Draw Debug Circle at the destination
+			if (bDrawDebug)
+			{
+				FVector Center = Destination + FVector(0.f, 0.f, 50.f);
+				FString Label = FString::Printf(TEXT("%d"), GroupData[UnitToSlot[i]].Priority);
+
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				if (PC && PC->PlayerCameraManager)
+				{
+					FVector CamRight = PC->PlayerCameraManager->GetActorRightVector();
+					FVector CamUp = PC->PlayerCameraManager->GetActorUpVector();
+
+					DrawDebugCircle(GetWorld(), Center, 100.f, 64, FColor::Blue, false, 5.f, 0, 5.f, CamRight, CamUp, false);
+				}
+				DrawDebugString(GetWorld(), Center, Label, nullptr, FColor::White, 5.f, false, 1.5f);
+			}
+		}
+	}
+}
+
+void AFormation::StopFormationMove()
+{
+	AAIController* AIController = Cast<AAIController>(GetController());
+	if (!AIController) return;
+
+	AIController->StopMovement();
+	OnFormationMoveCompleted.Broadcast(false);
+	Phase = EFormationPhase::Idle;
+}
+
 void AFormation::FallOutFormation()
 {
 	if (!bBroken)
@@ -380,6 +610,45 @@ void AFormation::FallInFormation()
 	if (bBroken)
 	{
 		bBroken = false;
+	}
+}
+
+void AFormation::SetRearrangementMode(EFormationRearrangeMode NewMode)
+{
+	if (RearrangeMode != NewMode)
+	{
+		RearrangeMode = NewMode;
+
+		if (RearrangeMode == EFormationRearrangeMode::OptimalMovement)
+		{
+			RearrangeFormation();
+		}
+	}
+}
+
+void AFormation::SetFixedRotationMode(bool bInFixedRotation)
+{
+	bFixedRotation = bInFixedRotation;
+}
+
+void AFormation::ChangeFormationAsset(UFormationAsset* NewFormation)
+{
+	if (NewFormation)
+	{
+		for (auto Agent : FormationAgentComponents)
+		{
+			if (Agent)
+			{
+				Agent->SetRefAgentData(nullptr);
+				Agent->SetAgentData(nullptr);
+			}
+		}
+		SetRefFormationAsset(NewFormation);
+		SetFormationAsset( DuplicateObject<UFormationAsset>(NewFormation, GetTransientPackage()));
+		RefFormationAsset->ConvertToFormationAgentDatas();
+		FormationAsset->ConvertToFormationAgentDatas();
+		RearrangeFormation();
+		ResizeRefFormationAsset();
 	}
 }
 
@@ -422,6 +691,16 @@ void AFormation::MoveFormationStart()
 
 void AFormation::RearrangeIfAgentsChanged()
 {
+	for (int32 i = FormationAgentComponents.Num() - 1; i >= 0; i--)
+	{
+		if (!FormationAgentComponents[i] ||
+			!IsValid(FormationAgentComponents[i]->GetOwner()) ||
+			FormationAgentComponents[i]->GetOwner()->IsActorBeingDestroyed())
+		{
+			FormationAgentComponents.RemoveAt(i);
+		}
+	}
+
 	if (PreviousFormationAgentComponents != FormationAgentComponents)
 	{
 		RearrangeFormation();
@@ -433,15 +712,15 @@ void AFormation::RearrangeIfAgentsChanged()
 void AFormation::ResizeRefFormationAsset()
 {
 	// Formation Collision Sphere Update By Agents Position
-	TArray<FVector2D> AgentPositions2D;
+	TArray<FVector> AgentPositions;
 	float MaxRadius = 0.0f;
 
 	for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
 	{
 		if (AgentComponent && AgentComponent->GetRefAgentData())
 		{
-			FVector Position = AgentComponent->GetRefAgentData()->Position;
-			AgentPositions2D.Add(FVector2D(Position.X, Position.Y));
+			FVector Position = AgentComponent->GetComponentLocation();
+			AgentPositions.Add(Position);
 			if (ACharacter* Character = Cast<ACharacter>(AgentComponent->GetOwner()))
 			{
 				FBoxSphereBounds CharacterSphere;
@@ -451,14 +730,14 @@ void AFormation::ResizeRefFormationAsset()
 		}
 	}
 
-	FCircle Circle = FFormationWelzl::GetMinimumEnclosingCircle(AgentPositions2D);
+	FSphere Sphere = FFormationWelzl::GetMinimumEnclosingSphere(AgentPositions);
 
-	RefFormationAsset->FormationRadius = Circle.Radius + MaxRadius;
-	RefFormationAsset->FormationCenter = Circle.Center;
-	FormationAsset->FormationRadius = Circle.Radius + MaxRadius;
-	FormationAsset->FormationCenter = Circle.Center;
+	//RefFormationAsset->FormationRadius = Sphere.W + MaxRadius;
+	//RefFormationAsset->FormationCenter = FVector2D(Sphere.Center.X, Sphere.Center.Y);
+	//FormationAsset->FormationRadius = RefFormationAsset->FormationRadius;
+	//FormationAsset->FormationCenter = FVector2D(Sphere.Center.X, Sphere.Center.Y);
 	SphereComponent->SetSphereRadius(FormationAsset->FormationRadius);
-	SphereComponent->SetRelativeLocation(FVector(Circle.Center.X, Circle.Center.Y, 0.f));
+	SphereComponent->SetWorldLocation(Sphere.Center);
 }
 
 void AFormation::UpdateAgentsBehaviorByState()
@@ -486,7 +765,6 @@ void AFormation::UpdateAgentsRotation()
 	AAIController* AIController = Cast<AAIController>(GetController());
 	if (!AIController) return;
 
-	const FVector CurrentLocation = GetActorLocation();
 	const FRotator CurrentRotation = GetActorRotation();
 
 	// If the rotate direction is based on shortest way to the target rotation
@@ -499,7 +777,7 @@ void AFormation::UpdateAgentsRotation()
 		{
 			// Calculate the new location for the agent based on the next tick rotation
 			// Agent's linear speed is in proportion to the distance from the center of the formation
-			FVector Location = NextTickRotation.RotateVector(AgentComponent->GetAgentData()->Position) + CurrentLocation;
+			FVector Location = NextTickRotation.RotateVector(AgentComponent->GetAgentData()->Position) + FormationCenter;
 			AgentComponent->UpdateAgent(Location);
 		}
 	}
@@ -508,20 +786,6 @@ void AFormation::UpdateAgentsRotation()
 	float AbsDeltaYaw = FMath::Abs(FormationTurnThreshold);
 	if(AbsDeltaYaw - FormationTurnSpeed < 0.0f)
 	{
-		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (!NavSys) return;
-
-		UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(),CurrentLocation,TargetLocation);
-		if (!NavPath || NavPath->PathPoints.Num() == 0)
-		{
-			OnFormationMoveCompleted.Broadcast();
-			Phase = EFormationPhase::Idle;
-			return; 
-		}
-		CurrentPathIndex = 0;
-
-		PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
-
 		Phase = EFormationPhase::Moving;
 	}
 
@@ -531,28 +795,6 @@ void AFormation::UpdateAgentsRotation()
 
 void AFormation::UpdateAgentsWithoutRotation()
 {
-	AAIController* AIController = Cast<AAIController>(GetController());
-	
-	if (!AIController) return;
-
-	const FVector CurrentLocation = GetActorLocation();
-	const FRotator CurrentRotation = GetActorRotation();
-
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	
-	if (!NavSys) return;
-
-	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(),CurrentLocation,TargetLocation);
-	
-	if (!NavPath || NavPath->PathPoints.Num() == 0)
-	{
-		OnFormationMoveCompleted.Broadcast();
-		Phase = EFormationPhase::Idle;
-		return; 
-	}
-
-	CurrentPathIndex = 0;
-	PathPoints = UFormationPathModifier::ApplyPathCorrection(GetWorld(), NavPath->PathPoints, RefFormationAsset, ModifierConfig);
 	Phase = EFormationPhase::Moving;
 }
 
@@ -562,8 +804,8 @@ void AFormation::UpdateAgentsLocation()
 	
 	if (!AIController) return;
 
-	const FVector CurrentLocation = GetActorLocation();
-	const FRotator CurrentRotation = GetActorRotation();
+	const FRotator CurrentFormationRotation = GetActorRotation();
+	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 
 	// formation's agents update their position based on the current rotation and target location
 	if (PathPoints.IsValidIndex(CurrentPathIndex))
@@ -576,30 +818,60 @@ void AFormation::UpdateAgentsLocation()
 				continue;
 			}
 
-			if (!AgentComponent->IsStray() && !IsBroken())
+			ACharacter* Unit = Cast<ACharacter>(AgentComponent->GetOwner());
+			UCharacterMovementComponent* MovementComp = Unit ? Unit->GetCharacterMovement() : nullptr;
+			if (!Unit || !MovementComp)
+			{
+				continue;
+			}
+			const FVector Destination = CurrentFormationRotation.RotateVector(AgentComponent->GetAgentData()->Position) + FormationCenter;
+
+			if (MovementComp->IsFlying())
+			{
+				
+				const float DistanceToTarget = FVector::Dist(Unit->GetActorLocation(), Destination);
+				
+				const float DampingDistance = 300.0f; 
+			
+
+				const float InterpSpeed = (DistanceToTarget > 1.0f) 
+					? FMath::Min(AgentSpeed, AgentSpeed * (DistanceToTarget / DampingDistance)) 
+					: 0.0f;
+
+				FVector NewLocation = FMath::VInterpTo(Unit->GetActorLocation(), Destination, DeltaTime, 1.0);
+				Unit->SetActorLocation(NewLocation);
+			
+				// Make the unit face its target location if it's moving
+				if (!Unit->GetActorLocation().Equals(Destination, 1.0f))
+				{
+					FRotator LocalTargetRotation = (Destination - Unit->GetActorLocation()).Rotation();
+					// Unit->SetActorRotation(FMath::RInterpTo(Unit->GetActorRotation(), LocalTargetRotation, DeltaTime, 5.0f));
+					Unit->SetActorRotation(LocalTargetRotation);
+
+				}
+			}
+			else if (!AgentComponent->IsStray() && !IsBroken())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateAgentsLocation_UpdateNormalAgent);
-				FVector Location = CurrentRotation.RotateVector(AgentComponent->GetAgentData()->Position) + CurrentLocation;
+				FVector Location = CurrentFormationRotation.RotateVector(AgentComponent->GetAgentData()->Position) + FormationCenter;
 				AgentComponent->UpdateAgent(Location);
 			}
 			else 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateAgentsLocation_MoveStrayAgent);
-				ACharacter* Unit = Cast<ACharacter>(AgentComponent->GetOwner());
 				Unit->GetCharacterMovement()->bOrientRotationToMovement = true;
 
-				FVector Destination = GetActorRotation().RotateVector(AgentComponent->GetAgentData()->Position) + GetActorLocation();
 				AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
 				if (UnitAIController)
 				{
-					UnitAIController->MoveToLocation(GetActorLocation(), 10.f);
+					UnitAIController->MoveToLocation(FormationCenter, 10.f);
 				}
 			}
 		}
 	}
 	else
 	{
-		OnFormationMoveCompleted.Broadcast();
+		OnFormationMoveCompleted.Broadcast(true);
 		Phase = EFormationPhase::Idle;
 		SCOPE_CYCLE_COUNTER(STAT_UpdateAgentsLocation_IdleLoop);
 		for (UFormationAgentComponent* AgentComponent : FormationAgentComponents)
@@ -622,7 +894,7 @@ void AFormation::UpdateAgentsAIMoveTo(UFormationAgentComponent* FormationAgentCo
 		return;
 	}
 
-	FVector Destination = GetActorRotation().RotateVector(FormationAgentComponent->GetAgentData()->Position) + GetActorLocation();
+	FVector Destination = GetActorRotation().RotateVector(FormationAgentComponent->GetAgentData()->Position) + FormationCenter;
 	AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
 	if (UnitAIController)
 	{
@@ -678,7 +950,7 @@ void AFormation::DownsizeFormation()
 
 	if (Phase != EFormationPhase::Idle)
 	{
-		if (bNeedDownsize || (OverlappingActors.Num() > 1 &&  !bCrashed))
+		if (bNeedDownsize || (OverlappingActors.Num() > 0 &&  !bCrashed))
 		{
 			check(FormationAsset);
 			// Ensure the ResizeFactor is within a reasonable range to prevent extreme scaling
@@ -741,7 +1013,7 @@ void AFormation::ResizeFormationData(float ResizeFactor)
 
 		if (!AgentComponent->GetAgentData())
 			continue;
-		FVector Destination = GetActorRotation().RotateVector(AgentComponent->GetAgentData()->Position) + GetActorLocation();
+		FVector Destination = GetActorRotation().RotateVector(AgentComponent->GetAgentData()->Position) + FormationCenter;
 
 		AAIController* UnitAIController = Cast<AAIController>(Unit->GetController());
 		
@@ -804,13 +1076,59 @@ bool AFormation::IsLocationOnNavMesh()
 	return false;
 }
 
+void AFormation::AdjustToGround()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	const FVector CurrentLocation = GetActorLocation();
+	const FVector Start = CurrentLocation + FVector(0, 0, 100.0f);
+	const FVector End = CurrentLocation - FVector(0, 0, 10000.0f);
+
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(this);
+	
+	const bool bDidHit = World->LineTraceSingleByChannel(
+		HitResult,
+		Start,
+		End,
+		ECollisionChannel::ECC_WorldStatic,
+		CollisionParams
+	);
+
+	if (bDidHit)
+	{
+		FVector NewLocation = CurrentLocation;
+		NewLocation.Z = HitResult.ImpactPoint.Z + 50.0f;
+		SetActorLocation(NewLocation);
+	}
+}
+
+void AFormation::DrawDebugData()
+{
+	if (bDrawDebug)
+	{
+		DrawDebugPath(PathPoints);
+
+		// Raw path data
+		if (!RawPathPoints.IsEmpty() && bDrawDebug)
+		{
+			for (int32 i = 0; i < RawPathPoints.Num() - 1; i++)
+			{
+				DrawDebugLine(GetWorld(), RawPathPoints[i], RawPathPoints[i + 1], FColor::Blue, false, -1.0f, 0, 5.0f);
+			}
+		}
+	}
+}
+
 void AFormation::DrawDebugPath(const TArray<FVector>& Path)
 {
-	if (!PathPoints.IsEmpty() && bDrawDebug)
+	if (!Path.IsEmpty() && bDrawDebug)
 	{
 		for (int32 i = 0; i < Path.Num() - 1; i++)
 		{
-			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, 5.0f, 0, 5.0f);
+			DrawDebugLine(GetWorld(), Path[i], Path[i + 1], FColor::Green, false, -1.0f, 0, 5.0f);
 			DrawDebugSphere(GetWorld(), GetActorLocation(), 30.0f, 12, FColor::Red, false);
 		}
 	}

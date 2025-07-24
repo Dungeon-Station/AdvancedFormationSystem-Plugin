@@ -13,6 +13,8 @@
 #include "EditorComponents.h"
 #include "Components/PostProcessComponent.h"
 
+class FFormationEditorToolkit;
+
 UENUM()
 enum class EFormationShowFlags : uint8
 {
@@ -53,27 +55,30 @@ public:
     virtual void TrackingStopped() override;
     virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
     
-    void RefreshPreviewActors();
+    TArray<int32> RefreshPreviewActors();
     void SelectActor(AActor* NewActor, bool bToggle = false);
 	void DeselectActor(AActor* ActorToDeselect);
-    void ClearSelection();
+    void ClearSelection(bool bNotify = true);
     bool IsActorSelected(AActor* InActor) const;
     void SelectActorByIndex(int32 Index);
+	const TArray<int32>& GetSelectedIndices() const { return SelectedIndices; }
 
     void OnPostUndoRedo();
     void ForceDestroyPreviewActors();
+
+    void SetEditorToolkit(TSharedPtr<FFormationEditorToolkit> InToolkit);
 private:
     FDelegateHandle PostUndoRedoHandle;
     UFormationAsset* EditedFormation;
     TArray<TWeakObjectPtr<AActor>> PreviewActors;
     bool bInitialized = false;
-    //TWeakObjectPtr<AActor> SelectedActor;
-    //int32 SelectedIndex = INDEX_NONE;
+
     TArray<TWeakObjectPtr<AActor>> SelectedActors;
     TArray<int32> SelectedIndices;
+
     UE::Widget::EWidgetMode CurrentWidgetMode = UE::Widget::WM_Translate;
     bool bIsDragging = false;
-    
+    bool bIsDuplicating = false;
     bool bBoxSelecting = false;
 	FIntPoint BoxSelectStart;
     FIntPoint BoxSelectEnd;
@@ -85,6 +90,8 @@ private:
 
     TObjectPtr<UStaticMesh> LeaderMesh;
     TObjectPtr<UMaterial> LeaderMaterial;
+
+    TWeakPtr<FFormationEditorToolkit> EditorToolkit;
 
     FVector AccumulatedDrag = FVector::ZeroVector;
 
@@ -105,6 +112,12 @@ private:
     void SwitchToOrthographicView(const FVector& NewDirection, ELevelViewportType NewViewportType);
 
     void SetHighlight(AActor* Actor, bool bEnable);
+
+    void NotifySelectionChanged();
+
+    void HandleAgentCountChanged();
+    void HandleAgentsDataChanged(const TArray<int32>& AgentIndices);
+    void HandleGroupPresetsChanged();
 public: // Set ViewMode Functions
     void SetTopView();
     void SetBottomView();

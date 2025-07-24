@@ -6,12 +6,16 @@
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UFormationAsset;
+class UAgentDataWrapper;
 class SFormationEditorViewport;
+class FFormationEditorViewportClient;
 class IDetailsView;
 
 class FFormationEditorToolkit : public FAssetEditorToolkit
 {
 public:
+    ~FFormationEditorToolkit();
+
     virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
     virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 
@@ -29,18 +33,33 @@ public:
     
     TSharedRef<SDockTab> SpawnMainTab(const FSpawnTabArgs& Args);
 
+    void UpdateAgentDetailsView(const TArray<int32>& SelectedAgentIndices);
+	void RefreshAgentDetailsView();
+
+    void NotifyAgentChanged(int32 AgentIndex, EPropertyChangeType::Type ChangeType);
+
     static const FName MainTabID;
     static const FName ViewportTabID;
     static const FName PreviewSettingsTabID;
+    static const FName AgentDetailsTabID;
 private:
     UFormationAsset* EditedAsset = nullptr;
     TSharedPtr<SFormationEditorViewport> ViewportWidget;
 
     TSharedPtr<IDetailsView> DetailsView;
 
-    void OnPropertySelectedInDetailsView(const FProperty* InProperty);
+    TSharedPtr<IDetailsView> AgentDetailsView;
+
+    TSet<int32> PendingChangedAgentIndices;
+
+    void OnFinishedChangingAgentProperties(const FPropertyChangedEvent& PropertyChagnedEvent);
+
+    UPROPERTY()
+    TArray<TObjectPtr<UObject>> SelectedAgentDataforDetails;
+
 
 protected:
     TSharedRef<SDockTab> SpawnViewportTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnPreviewSettingsTab(const FSpawnTabArgs& Args);
+    TSharedRef<SDockTab> SpawnAgentDetailsTab(const FSpawnTabArgs& Args);
 };

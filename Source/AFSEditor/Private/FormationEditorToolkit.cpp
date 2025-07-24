@@ -5,6 +5,7 @@
 #include "FormationEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "AFS/Public/FormationAsset.h"
+#include "AFS/Public/AgentDataWrapper.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "FormationEditorViewport.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -15,7 +16,8 @@
 
 const FName FFormationEditorToolkit::MainTabID = TEXT("AFS_MainTab");
 const FName FFormationEditorToolkit::ViewportTabID = TEXT("AFS_ViewportTab");
-const FName FFormationEditorToolkit::PreviewSettingsTabID(TEXT("AFS_PreviewSettings"));
+const FName FFormationEditorToolkit::PreviewSettingsTabID = TEXT("AFS_PreviewSettings");
+const FName FFormationEditorToolkit::AgentDetailsTabID = TEXT("AFS_AgentDetailsTab");
 
 void FFormationEditorToolkit::Initialize(
     const EToolkitMode::Type Mode,
@@ -24,7 +26,6 @@ void FFormationEditorToolkit::Initialize(
 {
 
     EditedAsset = FormationAsset;
-    
     const TSharedRef<FTabManager::FLayout> Layout = GetLayout();
 
     TArray<UObject*> ObjectsToEdit;
@@ -36,7 +37,19 @@ void FFormationEditorToolkit::Initialize(
     {
         return;
     }
-    
+
+    FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+    FDetailsViewArgs AgentDetailsViewArgs;
+    AgentDetailsViewArgs.bAllowSearch = true;
+    AgentDetailsViewArgs.bLockable = false;
+    AgentDetailsViewArgs.bUpdatesFromSelection = false;
+    AgentDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
+
+    AgentDetailsView = PropertyModule.CreateDetailView(AgentDetailsViewArgs);
+
+    AgentDetailsView->OnFinishedChangingProperties().AddSP(this, &FFormationEditorToolkit::OnFinishedChangingAgentProperties);
+
     InitAssetEditor(
         Mode,
         InitToolkitHost,
@@ -46,6 +59,11 @@ void FFormationEditorToolkit::Initialize(
         true,
         ObjectsToEdit
     );
+}
+
+FFormationEditorToolkit::~FFormationEditorToolkit()
+{
+    
 }
 
 void FFormationEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -65,6 +83,10 @@ void FFormationEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>&
 
     InTabManager->RegisterTabSpawner(PreviewSettingsTabID, FOnSpawnTab::CreateSP(this, &FFormationEditorToolkit::SpawnPreviewSettingsTab))
         .SetDisplayName(FText::FromString("Preview Scene Settings"))
+        .SetGroup(WorkspaceMenuCategoryRef);
+
+    InTabManager->RegisterTabSpawner(AgentDetailsTabID, FOnSpawnTab::CreateSP(this, &FFormationEditorToolkit::SpawnAgentDetailsTab))
+        .SetDisplayName(FText::FromString("Agent Properties"))
         .SetGroup(WorkspaceMenuCategoryRef);
 }
 
@@ -98,8 +120,101 @@ TSharedRef<SDockTab> FFormationEditorToolkit::SpawnMainTab(const FSpawnTabArgs& 
         ];
 }
 
-void FFormationEditorToolkit::OnPropertySelectedInDetailsView(const FProperty* InProperty)
+void FFormationEditorToolkit::UpdateAgentDetailsView(const TArray<int32>& SelectedAgentIndices)
 {
+    for (TObjectPtr<UObject>& Obj : SelectedAgentDataforDetails)
+    {
+        if (Obj)
+        {
+            Obj->ClearFlags(RF_Standalone);
+        }
+    }
+
+    SelectedAgentDataforDetails.Empty();
+
+    if (EditedAsset && AgentDetailsView.IsValid())
+    {
+        TArray<UObject*> ObjectsToSet;
+        const bool bIsMultiSelect = SelectedAgentIndices.Num() > 1;
+
+        for (int32 Index : SelectedAgentIndices)
+        {
+            if (EditedAsset->AgentDatas.IsValidIndex(Index))
+            {
+                UAgentDataWrapper* Wrapper = NewObject<UAgentDataWrapper>(GetTransientPackage(), NAME_None, RF_Transient | RF_Standalone);
+                Wrapper->SetAgentData(EditedAsset, Index);
+                Wrapper->bIsMultiSelected = bIsMultiSelect;
+
+                Wrapper->OnChanged.AddSP(this, &FFormationEditorToolkit::NotifyAgentChanged);
+
+                SelectedAgentDataforDetails.Add(Wrapper);
+
+                ObjectsToSet.Add(Wrapper);
+            }
+        }
+        AgentDetailsView->SetObjects(ObjectsToSet);
+    }
+}
+
+void FFormationEditorToolkit::RefreshAgentDetailsView()
+{
+    /*if (AgentDetailsView.IsValid())
+    {
+        TArray<int32> CurrentIndices;
+        for (UObject* Obj : SelectedAgentDataforDetails)
+        {
+            if(UAgentDataWrapper* Wrapper = Cast<UAgentDataWrapper>(Obj))
+            {
+                CurrentIndices.Add(Wrapper->AgentIndex);
+			}
+        }
+
+		AgentDetailsView->SetObjects(TArray<UObject*>());
+
+        if(CurrentIndices.Num() > 0)
+        {
+            UpdateAgentDetailsView(CurrentIndices);
+        }
+    }*/
+
+    if (AgentDetailsView.IsValid() && ViewportWidget.IsValid())
+    {
+        TSharedPtr<FFormationEditorViewportClient> ViewportClient = StaticCastSharedPtr<FFormationEditorViewportClient>(ViewportWidget->GetViewportClient());
+        if (ViewportClient.IsValid())
+        {
+            UpdateAgentDetailsView(ViewportClient->GetSelectedIndices());
+        }
+    }
+}
+
+void FFormationEditorToolkit::NotifyAgentChanged(int32 AgentIndex, EPropertyChangeType::Type ChangeType)
+{
+    if (ChangeType == EPropertyChangeType::Interactive)
+    {
+        if (EditedAsset)
+        {
+            EditedAsset->OnAgentsDataChanged.Broadcast({ AgentIndex });
+        }
+    }
+    else
+    {
+        PendingChangedAgentIndices.Add(AgentIndex);
+    }
+}
+
+void FFormationEditorToolkit::OnFinishedChangingAgentProperties(const FPropertyChangedEvent& PropertyChagnedEvent)
+{
+    if (PendingChangedAgentIndices.Num() > 0)
+    {
+        TArray<int32> ChangedIndices = PendingChangedAgentIndices.Array();
+
+        if (EditedAsset)
+        {
+            EditedAsset->OnAgentsDataChanged.Broadcast(ChangedIndices);
+        }
+
+        PendingChangedAgentIndices.Empty();
+    }
 }
 
 TSharedRef<SDockTab> FFormationEditorToolkit::SpawnViewportTab(const FSpawnTabArgs& Args)
@@ -116,6 +231,15 @@ TSharedRef<SDockTab> FFormationEditorToolkit::SpawnViewportTab(const FSpawnTabAr
 
     ViewportWidget = SNew(SFormationEditorViewport)
         .FormationAsset(EditedAsset);
+
+    TSharedPtr<FEditorViewportClient> BaseClient = ViewportWidget->GetViewportClient();
+    if (BaseClient.IsValid())
+    {
+        if (TSharedPtr<FFormationEditorViewportClient> MyClient = StaticCastSharedPtr<FFormationEditorViewportClient>(BaseClient))
+        {
+            MyClient->SetEditorToolkit(SharedThis(this));
+        }
+    }
 
     return SNew(SDockTab)
         .Label(FText::FromString("Formation Eidtor"))
@@ -135,6 +259,30 @@ TSharedRef<SDockTab> FFormationEditorToolkit::SpawnPreviewSettingsTab(const FSpa
         .Label(FText::FromString("Preview Scene Settings"))
         [
             PreviewSettingsWidget
+        ];
+}
+
+TSharedRef<SDockTab> FFormationEditorToolkit::SpawnAgentDetailsTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .Label(FText::FromString("Agent Properties"))
+        [
+            SNew(SVerticalBox)
+
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(5.0f)
+                [
+                    SNew(STextBlock)
+                        .Text(FText::FromString("Selected Agent Properties"))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Blod", 10))
+                ]
+
+                + SVerticalBox::Slot()
+                .FillHeight(1.0f)
+                [
+                    AgentDetailsView.ToSharedRef()
+                ]
         ];
 }
 
@@ -160,16 +308,29 @@ const TSharedRef<FTabManager::FLayout> FFormationEditorToolkit::GetLayout() cons
             ->Split
             (
                 FTabManager::NewStack()
-                ->SetSizeCoefficient(0.7f)
+                ->SetSizeCoefficient(0.5f)
                 ->AddTab(ViewportTabID, ETabState::OpenedTab)
-                ->SetHideTabWell(true) 
+                ->SetHideTabWell(true)
             )
             ->Split
             (
-                FTabManager::NewStack()
-                ->SetSizeCoefficient(0.3f)
-                ->AddTab(MainTabID, ETabState::OpenedTab)
-                ->SetHideTabWell(true)
+                FTabManager::NewSplitter()
+                ->SetOrientation(Orient_Vertical)
+                ->SetSizeCoefficient(0.5f)
+                ->Split
+                (
+                    FTabManager::NewStack()
+                    ->SetSizeCoefficient(0.4f)
+                    ->AddTab(MainTabID, ETabState::OpenedTab)
+                    ->SetHideTabWell(true)
+                )
+                ->Split
+                (
+                    FTabManager::NewStack()
+                    ->SetSizeCoefficient(0.6f)
+                    ->AddTab(AgentDetailsTabID, ETabState::OpenedTab)
+                    ->SetHideTabWell(true)
+                )
             )
         );
 }

@@ -16,7 +16,7 @@ class AFormation;
 struct FAgentData;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class AFS_API UFormationAgentComponent : public UActorComponent, public ICrowdAgentInterface
+class AFS_API UFormationAgentComponent : public USceneComponent, public ICrowdAgentInterface
 {
     GENERATED_BODY()
 
@@ -25,7 +25,6 @@ public:
     
 protected:
     virtual void BeginPlay() override;
-
 
 public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -77,6 +76,9 @@ public:
         FormationOwner = InFormationOwner;
 	}
 
+    UFUNCTION(BlueprintCallable, Category = "Formation")
+    bool HasAgentData() const { return AgentData != nullptr; }
+
     bool IsStray() const { return bStray; }
     void SetStray(bool InStray) { bStray = InStray; }
 
@@ -104,6 +106,7 @@ private:
     FVector TargetLocation;
     float LostTimer = 0;
     float LostTreshold = 2.0f;
+    float RotationTolerance = 1.e-4f;
 
     bool bStray = false;
 };
