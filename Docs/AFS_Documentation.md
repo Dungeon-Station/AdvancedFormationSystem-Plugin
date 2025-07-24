@@ -201,17 +201,43 @@ Struct containing configuration parameters for spline-based path smoothing.
 
 ### **Blueprint API**
 
+#### **Events & Delegates**
+
+| Type | Property | Description |
+|:-----|:---------|:------------|
+| `FFormationMoveCompleted` | **`OnFormationMoveCompleted`** | Blueprint assignable delegate called when formation movement is completed. |
+
 #### **AFormation Blueprint/Native Functions**
 
 | Return Type | Function            | Parameters                                             | Description                                             |
 |:-----------|:--------------------|:------------------------------------------------------|:--------------------------------------------------------|
 | `void`     | **`FormationMoveTo`**   | `const FVector& Location, const FRotator& Rotation`   | Moves the formation to a target location and rotation.  |
+| `void`     | **`FormationMoveAlongSpline`**   | `USplineComponent* InSpline, float StepDistance`   | Moves the formation along a specified spline path, step distance is gap between path points. |
 | `void`     | **`RegisterAgent`**     | `UFormationAgentComponent* AgentComponent`            | Registers an agent to the formation.                    |
 | `void`     | **`RearrangeFormation`**|                                                      | Rearranges the formation according to the current formation asset. |
+| `void`     | **`RearrangeFormationNoMove`**|                                                      | Instantly rearranges agents to formation slots without pathfinding movement. |
+| `void`     | **`StopFormationMove`** |                                                      | Stops the current formation movement and sets phase to Idle. |
 | `void`     | **`FallOutFormation`**  |                                                      | Temporarily disbands the formation.                     |
 | `void`     | **`FallInFormation`**   |                                                      | Reforms the formation after being disbanded.            |
-| `void`     | **`ResizeRefFormationAsset`** |                                                | Resizes the reference formation asset.                  |
-
+| `void`     | **`SetRearrangementMode`** | `EFormationRearrangeMode NewMode`                   | Sets the formation rearrangement mode (OptimalMovement, MaintainSlot, ForcedRotation). |
+| `void`     | **`SetFixedRotationMode`** | `bool bInFixedRotation`                             | Enables or disables fixed rotation mode for formation agents. |
+| `void`     | **`ChangeFormationAsset`** | `UFormationAsset* NewFormation`                     | Changes the current formation asset to a new formation configuration. |
+| `void`     | **`MoveCompleted`**     | `bool bSuccess`                                      | Blueprint implementable event called when formation movement is completed. |
+| `void`     | **`ResizeRefFormationAsset`** |                                                | Resizes the reference formation asset based on current agent positions. |
+| `void`     | **`SetFormationAsset`** | `UFormationAsset* NewFormationAsset`               | Sets the current formation asset. |
+| `void`     | **`SetRefFormationAsset`** | `UFormationAsset* NewRefFormationAsset`           | Sets the reference formation asset. |
+| `void`     | **`SetRegistered`**     | `bool bInRegistered`                                | Sets the registration status of the formation. |
+| `float`    | **`GetFormationSpeed`** |                                                      | Returns the current formation movement speed. |
+| `float`    | **`GetAgentSpeed`**     |                                                      | Returns the current agent movement speed. |
+| `float`    | **`GetStrayAgentSpeed`** |                                                     | Returns the movement speed for stray agents outside formation. |
+| `float`    | **`GetAgentAcceleration`** |                                                   | Returns the current agent acceleration value. |
+| `bool`     | **`GetFixedRotationMode`** |                                                   | Returns whether fixed rotation mode is enabled. |
+| `bool`     | **`IsRegistered`**      |                                                      | Returns whether the formation is registered. |
+| `bool`     | **`IsBroken`**          |                                                      | Returns whether the formation is currently broken. |
+| `TArray<UFormationAgentComponent*>` | **`GetFormationAgentComponents`** |              | Returns array of all registered formation agent components. |
+| `UFormationAsset*` | **`GetFormationAsset`** |                                             | Returns the current formation asset. |
+| `UFormationAsset*` | **`GetRefFormationAsset`** |                                         | Returns the reference formation asset. |
+| `EFormationPhase` | **`GetFormationPhase`** |                                              | Returns the current formation phase (Idle, Rotating, Moving). |
 
 #### **UFormationAgentComponent Blueprint/Native Functions**
 
@@ -219,3 +245,13 @@ Struct containing configuration parameters for spline-based path smoothing.
 |:-------------|:----------------------|:-----------------------------------|:----------------------------------------------------|
 | `AFormation*` | **`GetFormationOwner`**   |                        | Returns a pointer to the owning formation actor.     |
 | `void`        | **`SetFormationOwner`**   | `AFormation* InFormationOwner`     | Sets the owning formation actor for this component.  |
+| `bool`        | **`HasAgentData`**        |                                    | Returns whether this agent component has valid agent data assigned. |
+
+#### **UFormationPathModifier Static Functions**
+
+| Return Type | Function | Parameters | Description |
+|:-----------|:---------|:-----------|:------------|
+| `TArray<FVector>` | **`ApplyPathCorrection`** | `UWorld* WorldContextObject, const TArray<FVector>& RawPath, UFormationAsset* FormationAsset, FPathModifierConfig ModifierConfig` | Applies comprehensive path correction to raw path points based on formation requirements and configuration settings. |
+| `TArray<FVector>` | **`ApplyOffset`** | `UWorld* WorldContextObject, const TArray<FVector>& Path, float OffsetDistance, float TraceRadius, FPathModifierConfig ModifierConfig` | Applies offset to path points to avoid obstacles, using specified offset distance and trace radius for collision detection. |
+| `TArray<FVector>` | **`ApplySmoothing`** | `const TArray<FVector>& Path, FPathModifierConfig ModifierConfig` | Smooths path points to create more natural movement curves based on modifier configuration settings. |
+| `TArray<FVector>` | **`StraightenPath`** | `UWorld* WorldContextObject, const TArray<FVector>& RawPath` | Straightens path by removing unnecessary waypoints and creating more direct routes between key points. |
