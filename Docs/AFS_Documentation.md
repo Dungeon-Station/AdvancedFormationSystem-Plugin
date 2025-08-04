@@ -83,8 +83,8 @@ Represents a formation entity that manages characters with UFormationAgentCompon
 
 | Name                                   | Purpose                                             |
 |:-----------------------------------------|:-----------------------------------------------------|
-| **`EFormationPhase`**                        | Current state (Idle, Moving)                        |
-| **`EFormationMode`**                        | Current Formation Management Mode (Soft, Hard)       |
+| **`EFormationPhase Phase`**                  | Current state (Idle, Moving)                        |
+| **`EFormationMode FormationRigidityMode`**   | Current Formation Management Mode (Soft, Hard)       |
 | **`EFormationRearrangeMode RearrangeMode`**  | Rearrangement mode for the formation                |
 | **`TArray<FVector> RawPathPoints`**  | Raw path points created by navigation system                |
 | **`TArray<FVector> PathPoints`**      | Computed path points for the formation to follow           |
@@ -119,6 +119,11 @@ MaintainSlot: Agents remain in their original slots.
 
 ForcedRotation: Agents rotate to face a new direction first, then moves to target location.
 
+##### **Formation Rigidity Mode**
+
+Hard : The formation moves toward the destination while trying to maintain its original size as much as possible, which may result in some deviation from the intended destination.
+
+Soft : The formation can reduce its size itself to arrive precisely at the target destination.
 
 #### **UFormationAgentComponent**
 
@@ -136,12 +141,11 @@ A component added to actors to make them members of an AFormation. It enables ce
 | Name                           | Purpose                                                                                   |
 |:-------------------------------|:------------------------------------------------------------------------------------------|
 | **`AFormation* FormationOwner`**   | Pointer to the owning formation actor                                                     |
-| **`FAgentData* AgentData`**        | Pointer to agent data structure from the formation asset (relative position, priority, group info, etc.) |
-| **`FVector TargetLocation`**       | Current world-space target location for the agent                                         |
-| **`bool bStray`**                  | Whether the agent is currently outside the formation                                      |
+| **`FName GroupName`**              | Agent's group name                                                                        |
 
 
 #### **UFormationAsset**
+
 A data asset class defining information about a formation, including slot positions, priorities, and group info. Editable via the Formation Editor.
 
 - **Member Variables**
@@ -149,14 +153,13 @@ A data asset class defining information about a formation, including slot positi
 | Name                              | Purpose                                                                                 |
 |:-----------------------------------|:----------------------------------------------------------------------------------------|
 | **`FString FormationName`**        | Name for identification in editor/UI                                                    |
-| **`float FormationRadius`**        | Circumscribed circle radius for the formation (auto-calculated)                         |
 | **`float FormationMinRadius`**     | Minimum radius required to maintain the formation shape                                 |
-| **`FVector2D FormationCenter`**    | 2D center of the formation (excluding Z)                                                |
 | **`TArray<FAgentData> AgentDatas`**| Array of all agent slots in the formation                                               |
-| **`TArray<FName> GroupNames`**     | List of group names available for slot assignment                                       |
+| **`TArray<FGroupInformation> GroupUnitPresets`**     | List of group's information                                            |
 
 
 #### **FAgentData**
+
 Struct used for each agent in the formation asset.
 
 | Name                       | Purpose                                                        |
@@ -166,6 +169,14 @@ Struct used for each agent in the formation asset.
 | **`int32 Priority`**        | Slot priority (lower values filled first)                      |
 | **`FName GroupName`**       | Group name for the slot (for group-based assignment)           |
 
+#### **FGroupInformation**
+
+Struct used for each group's information
+
+| Name                       | Purpose                                                        |
+|:---------------------------|:---------------------------------------------------------------|
+| **`FName GroupName`**      | Name of group                                 |
+| **`TSubclassOf<APawn>`**   | Preset actor class of group                   |
 
 #### **FPathModifierConfig**
 
